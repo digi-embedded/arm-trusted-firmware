@@ -484,7 +484,14 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
 #if STM32MP_SPI_NAND
 	case BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_NAND_QSPI:
 #endif
+/*
+ * With FWU Multi Bank feature enabled, the selection of
+ * the image to boot will be done by fwu_init calling the
+ * platform hook, plat_fwu_set_images_source.
+ */
+#if !PSA_FWU_SUPPORT
 		image_block_spec.offset = STM32MP_NAND_FIP_OFFSET;
+#endif
 		break;
 #endif
 
@@ -574,6 +581,14 @@ int plat_try_backup_partitions(unsigned int image_id)
 	if (backup_nb >= PLATFORM_MTD_BACKUP_BLOCKS) {
 		return 0;
 	}
+
+#if PSA_FWU_SUPPORT
+	if (((image_block_spec.offset < STM32MP_NAND_FIP_B_OFFSET) &&
+	     ((image_block_spec.offset + nand_bkp_offset) >= STM32MP_NAND_FIP_B_OFFSET)) ||
+	    (image_block_spec.offset + nand_bkp_offset >= STM32MP_NAND_FIP_B_MAX_OFFSET)) {
+		return 0;
+	}
+#endif
 
 	image_block_spec.offset += nand_bkp_offset;
 
@@ -679,8 +694,14 @@ void plat_fwu_set_images_source(const struct fwu_metadata *metadata)
 		}
 #endif
 #if (STM32MP_SPI_NAND || STM32MP_RAW_NAND)
-#error "FWU NAND not yet implemented"
-		panic();
+		if (guidcmp(img_uuid, &STM32MP_NAND_FIP_A_GUID) == 0) {
+			image_spec->offset = STM32MP_NAND_FIP_A_OFFSET;
+		} else if (guidcmp(img_uuid, &STM32MP_NAND_FIP_B_GUID) == 0) {
+			image_spec->offset = STM32MP_NAND_FIP_B_OFFSET;
+		} else {
+			ERROR("Invalid uuid mentioned in metadata\n");
+			panic();
+		}
 #endif
 	}
 }
@@ -723,6 +744,17 @@ static int plat_set_image_source(unsigned int image_id,
 
 	spec->length = sizeof(struct fwu_metadata);
 #endif
+
+#if (STM32MP_SPI_NAND || STM32MP_RAW_NAND)
+	if (image_id == FWU_METADATA_IMAGE_ID) {
+		spec->offset = STM32MP_NAND_METADATA1_OFFSET;
+	} else {
+		spec->offset = STM32MP_NAND_METADATA2_OFFSET;
+	}
+
+	spec->length = sizeof(struct fwu_metadata);
+#endif
+
 	*image_spec = policy->image_spec;
 	*handle = *policy->dev_handle;
 
