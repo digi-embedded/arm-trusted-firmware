@@ -321,3 +321,46 @@ void set_gpio_reset_cfg(uint32_t bank, uint32_t pin)
 		 GPIO_SPEED_LOW, GPIO_NO_PULL, 0U, GPIO_ALTERNATE_(0), DT_DISABLED);
 	set_gpio_secure_cfg(bank, pin, stm32_gpio_is_secure_at_reset(bank));
 }
+
+void set_gpio_level(uint32_t bank, uint32_t pin, bool level)
+{
+	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	unsigned long clock = stm32_get_gpio_bank_clock(bank);
+
+	assert(pin <= GPIO_PIN_MAX);
+
+	clk_enable(clock);
+
+	if (level) {
+		mmio_write_32(base + GPIO_BSRR_OFFSET, BIT(pin));
+	} else {
+		mmio_write_32(base + GPIO_BSRR_OFFSET, BIT(pin + 16U));
+	}
+
+	VERBOSE("GPIO %u level set to 0x%x\n", bank,
+		mmio_read_32(base + GPIO_IDR_OFFSET));
+
+	clk_disable(clock);
+}
+
+bool get_gpio_level(uint32_t bank, uint32_t pin)
+{
+	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	unsigned long clock = stm32_get_gpio_bank_clock(bank);
+	bool level = false;
+
+	assert(pin <= GPIO_PIN_MAX);
+
+	clk_enable(clock);
+
+	if (mmio_read_32(base + GPIO_IDR_OFFSET) & BIT(pin)) {
+		level = true;
+	}
+
+	VERBOSE("GPIO %u get level 0x%x\n", bank,
+		mmio_read_32(base + GPIO_IDR_OFFSET));
+
+	clk_disable(clock);
+
+	return level;
+}
