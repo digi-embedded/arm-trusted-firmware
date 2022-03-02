@@ -43,8 +43,8 @@
 };
 
 &bsec {
-	board_id: board_id@ec {
-		reg = <0xec 0x4>;
+	hwid: hwid@ec {
+		reg = <0xec 0xc>;
 		st,non-secure-otp;
 	};
 };
@@ -251,7 +251,7 @@
 		      <&package_otp>,
 		      <&hw2_otp>,
 		      <&pkh_otp>,
-		      <&board_id>;
+		      <&hwid>;
 
 	nvmem-cell-names = "cfg0_otp",
 			   "part_number_otp",
@@ -261,7 +261,7 @@
 			   "package_otp",
 			   "hw2_otp",
 			   "pkh_otp",
-			   "board_id";
+			   "hwid";
 };
 
 &pwr_regulators {
