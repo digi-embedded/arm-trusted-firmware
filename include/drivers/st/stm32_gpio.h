@@ -53,12 +53,19 @@
 
 #ifndef __ASSEMBLER__
 #include <stdint.h>
-
 int dt_set_pinctrl_config(int node);
 void set_gpio_secure_cfg(uint32_t bank, uint32_t pin, bool secure);
 void set_gpio_reset_cfg(uint32_t bank, uint32_t pin);
-void set_gpio_level(uint32_t bank, uint32_t pin, bool level);
-bool get_gpio_level(uint32_t bank, uint32_t pin);
+
+enum gpio_level {
+	GPIO_LEVEL_LOW,
+	GPIO_LEVEL_HIGH
+};
+
+void set_gpio_level(uint32_t bank, uint32_t pin, enum gpio_level level);
+enum gpio_level get_gpio_level(uint32_t bank, uint32_t pin);
+
+void set_gpio_config(uint32_t bank, uint32_t pin, uint32_t config, uint8_t status);
 #endif /*__ASSEMBLER__*/
 
 #endif /* STM32_GPIO_H */
