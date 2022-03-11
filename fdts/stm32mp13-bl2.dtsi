@@ -32,7 +32,7 @@
 		/delete-node/ usbphyc@5a006000;
 #endif
 
-		pin-controller@50002000 {
+		pinctrl@50002000 {
 #if !STM32MP_EMMC && !STM32MP_SDMMC
 			/delete-node/ sdmmc1-b4-0;
 			/delete-node/ sdmmc2-b4-0;
