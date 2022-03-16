@@ -17,6 +17,7 @@
 #include <drivers/clk.h>
 #include <drivers/st/stm32_gpio.h>
 #include <drivers/st/stm32mp_clkfunc.h>
+#include <dt-bindings/gpio/stm32-gpio.h>
 #include <lib/mmio.h>
 #include <lib/utils_def.h>
 
