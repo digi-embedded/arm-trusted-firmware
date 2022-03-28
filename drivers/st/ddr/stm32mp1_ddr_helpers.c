@@ -96,7 +96,7 @@ static int ddr_sw_self_refresh_in(void)
 	mmio_clrbits_32(ddrphyc_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_CKOE);
 
 	/* Additional delay to avoid early latch */
-	udelay(10);
+	udelay(DDR_DELAY_10US);
 
 	/* Activate sw retention in PWRCTRL */
 	stm32mp_pwr_regs_lock();
@@ -201,7 +201,7 @@ int ddr_sw_self_refresh_exit(void)
 #endif
 
 	/* Additional delay to avoid early DLL clock switch */
-	udelay(50);
+	udelay(DDR_DELAY_50US);
 
 	/* Switch controller clocks (uMCTL2/PUBL) to DLL ref clock */
 	stm32mp1_clk_rcc_regs_lock();
@@ -211,7 +211,7 @@ int ddr_sw_self_refresh_exit(void)
 	mmio_clrbits_32(ddrphyc_base + DDRPHYC_ACDLLCR,
 			DDRPHYC_ACDLLCR_DLLSRST);
 
-	udelay(10);
+	udelay(DDR_DELAY_10US);
 
 	mmio_setbits_32(ddrphyc_base + DDRPHYC_ACDLLCR,
 			DDRPHYC_ACDLLCR_DLLSRST);
@@ -222,7 +222,7 @@ int ddr_sw_self_refresh_exit(void)
 		      DDRPHYC_PIR_ITMSRST | DDRPHYC_PIR_INIT);
 
 	/* Need to wait at least 10 clock cycles before accessing PGSR */
-	udelay(1);
+	udelay(DDR_DELAY_1US);
 
 	/* Pool end of init */
 	timeout = timeout_init_us(DDR_TIMEOUT_500US);

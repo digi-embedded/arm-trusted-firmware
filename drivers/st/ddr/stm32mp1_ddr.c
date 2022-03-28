@@ -268,7 +268,7 @@ static void stm32mp1_ddrphy_init(struct stm32mp_ddrphy *phy, uint32_t pir)
 		mmio_read_32((uintptr_t)&phy->pir));
 
 	/* Need to wait 10 configuration clock before start polling */
-	udelay(10);
+	udelay(DDR_DELAY_10US);
 
 	/* Wait DRAM initialization and Gate Training Evaluation complete */
 	stm32mp1_ddrphy_idone_wait(phy);
@@ -734,7 +734,7 @@ void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
 	mmio_clrbits_32(priv->rcc + RCC_DDRITFCR, RCC_DDRITFCR_DDRCAPBRST);
 
 	/* 1.4. wait 128 cycles to permit initialization of end logic */
-	udelay(2);
+	udelay(DDR_DELAY_2US);
 	/* For PCLK = 133MHz => 1 us is enough, 2 to allow lower frequency */
 
 	/* 1.5. initialize registers ddr_umctl2 */
