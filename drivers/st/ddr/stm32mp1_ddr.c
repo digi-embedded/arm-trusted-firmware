@@ -217,7 +217,7 @@ static void stm32mp1_ddrphy_idone_wait(struct stm32mp_ddrphy *phy)
 {
 	uint32_t pgsr;
 	int error = 0;
-	uint64_t timeout = timeout_init_us(TIMEOUT_US_1S);
+	uint64_t timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 
 	do {
 		pgsr = mmio_read_32((uintptr_t)&phy->pgsr);
@@ -281,7 +281,7 @@ static void stm32mp1_wait_operating_mode(struct stm32mp_ddr_priv *priv, uint32_t
 	uint32_t stat;
 	int break_loop = 0;
 
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 	for ( ; ; ) {
 		uint32_t operating_mode;
 		uint32_t selref_type;

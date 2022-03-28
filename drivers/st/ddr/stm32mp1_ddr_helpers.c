@@ -225,7 +225,7 @@ int ddr_sw_self_refresh_exit(void)
 	udelay(1);
 
 	/* Pool end of init */
-	timeout = timeout_init_us(TIMEOUT_500US);
+	timeout = timeout_init_us(DDR_TIMEOUT_500US);
 
 	while ((mmio_read_32(ddrphyc_base + DDRPHYC_PGSR) &
 		DDRPHYC_PGSR_IDONE) == 0U) {
@@ -285,7 +285,7 @@ int ddr_sw_self_refresh_exit(void)
 	stm32mp_ddr_sw_selfref_exit((struct stm32mp_ddrctl *)ddrctrl_base);
 
 	/* Wait operating_mode == normal */
-	timeout = timeout_init_us(TIMEOUT_500US);
+	timeout = timeout_init_us(DDR_TIMEOUT_500US);
 	while ((mmio_read_32(ddrctrl_base + DDRCTRL_STAT) &
 		DDRCTRL_STAT_OPERATING_MODE_MASK) !=
 	       DDRCTRL_STAT_OPERATING_MODE_NORMAL) {

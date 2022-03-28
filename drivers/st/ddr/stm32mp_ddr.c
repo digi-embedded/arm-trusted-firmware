@@ -65,7 +65,7 @@ void stm32mp_ddr_wait_sw_done_ack(struct stm32mp_ddrctl *ctl)
 	VERBOSE("[0x%lx] swctl = 0x%x\n",
 		(uintptr_t)&ctl->swctl, mmio_read_32((uintptr_t)&ctl->swctl));
 
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 	do {
 		swstat = mmio_read_32((uintptr_t)&ctl->swstat);
 		VERBOSE("[0x%lx] swstat = 0x%x ",
@@ -116,7 +116,7 @@ int stm32mp_ddr_disable_axi_port(struct stm32mp_ddrctl *ctl)
 	 * Poll PSTAT.rd_port_busy_n = 0
 	 * Poll PSTAT.wr_port_busy_n = 0
 	 */
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 	do {
 		pstat = mmio_read_32((uintptr_t)&ctl->pstat);
 		VERBOSE("[0x%lx] pstat = 0x%x ",
@@ -158,7 +158,7 @@ void stm32mp_ddr_disable_host_interface(struct stm32mp_ddrctl *ctl)
 	 * data_pipeline fields must be polled twice to ensure
 	 * value propoagation, so count is added to loop condition.
 	 */
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 	do {
 		dbgcam = mmio_read_32((uintptr_t)&ctl->dbgcam);
 		VERBOSE("[0x%lx] dbgcam = 0x%x ",
@@ -189,7 +189,7 @@ int stm32mp_ddr_sw_selfref_entry(struct stm32mp_ddrctl *ctl)
 	 * Ensure transition to self-refresh was due to software
 	 * by checking also that STAT.selfref_type[1:0]=2.
 	 */
-	timeout = timeout_init_us(TIMEOUT_500US);
+	timeout = timeout_init_us(DDR_TIMEOUT_500US);
 	while (!timeout_elapsed(timeout)) {
 		stat = mmio_read_32((uintptr_t)&ctl->stat);
 		operating_mode = stat & DDRCTRL_STAT_OPERATING_MODE_MASK;
@@ -246,7 +246,7 @@ void stm32mp_ddr_wait_refresh_update_done_ack(struct stm32mp_ddrctl *ctl)
 	VERBOSE("[0x%lx] rfshctl3 = 0x%x\n",
 		(uintptr_t)&ctl->rfshctl3, mmio_read_32((uintptr_t)&ctl->rfshctl3));
 
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(DDR_TIMEOUT_US_1S);
 	do {
 		rfshctl3 = mmio_read_32((uintptr_t)&ctl->rfshctl3);
 		VERBOSE("[0x%lx] rfshctl3 = 0x%x ", (uintptr_t)&ctl->rfshctl3, rfshctl3);
