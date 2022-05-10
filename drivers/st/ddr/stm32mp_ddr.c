@@ -14,6 +14,9 @@
 
 #define INVALID_OFFSET	0xFFU
 
+static bool axi_port_reenable_request;
+static bool host_interface_reenable_request;
+
 static uintptr_t get_base_addr(const struct stm32mp_ddr_priv *priv, enum stm32mp_ddr_base_type base)
 {
 	if (base == DDRPHY_BASE) {
@@ -129,6 +132,11 @@ int stm32mp_ddr_disable_axi_port(struct stm32mp_ddrctl *ctl)
 	return 0;
 }
 
+static bool ddr_is_axi_port_enabled(struct stm32mp_ddrctl *ctl)
+{
+	return (mmio_read_32((uintptr_t)&ctl->pctrl_0) & DDRCTRL_PCTRL_N_PORT_EN) != 0U;
+}
+
 void stm32mp_ddr_enable_host_interface(struct stm32mp_ddrctl *ctl)
 {
 	mmio_clrbits_32((uintptr_t)&ctl->dbg1, DDRCTRL_DBG1_DIS_HIF);
@@ -169,6 +177,11 @@ void stm32mp_ddr_disable_host_interface(struct stm32mp_ddrctl *ctl)
 		count++;
 	} while (((dbgcam & DDRCTRL_DBG_Q_AND_DATA_PIPELINE_EMPTY) !=
 		  DDRCTRL_DBG_Q_AND_DATA_PIPELINE_EMPTY) || (count < 2));
+}
+
+static bool ddr_is_host_interface_enabled(struct stm32mp_ddrctl *ctl)
+{
+	return (mmio_read_32((uintptr_t)&ctl->dbg1) & DDRCTRL_DBG1_DIS_HIF) == 0U;
 }
 
 int stm32mp_ddr_sw_selfref_entry(struct stm32mp_ddrctl *ctl)
@@ -214,18 +227,34 @@ void stm32mp_ddr_sw_selfref_exit(struct stm32mp_ddrctl *ctl)
 
 void stm32mp_ddr_set_qd3_update_conditions(struct stm32mp_ddrctl *ctl)
 {
-	if (stm32mp_ddr_disable_axi_port(ctl) != 0) {
-		panic();
+	if (ddr_is_axi_port_enabled(ctl)) {
+		if (stm32mp_ddr_disable_axi_port(ctl) != 0) {
+			panic();
+		}
+		axi_port_reenable_request = true;
 	}
-	stm32mp_ddr_disable_host_interface(ctl);
+
+	if (ddr_is_host_interface_enabled(ctl)) {
+		stm32mp_ddr_disable_host_interface(ctl);
+		host_interface_reenable_request = true;
+	}
+
 	stm32mp_ddr_start_sw_done(ctl);
 }
 
 void stm32mp_ddr_unset_qd3_update_conditions(struct stm32mp_ddrctl *ctl)
 {
 	stm32mp_ddr_wait_sw_done_ack(ctl);
-	stm32mp_ddr_enable_host_interface(ctl);
-	stm32mp_ddr_enable_axi_port(ctl);
+
+	if (host_interface_reenable_request) {
+		stm32mp_ddr_enable_host_interface(ctl);
+		host_interface_reenable_request = false;
+	}
+
+	if (axi_port_reenable_request) {
+		stm32mp_ddr_enable_axi_port(ctl);
+		axi_port_reenable_request = false;
+	}
 }
 
 void stm32mp_ddr_wait_refresh_update_done_ack(struct stm32mp_ddrctl *ctl)
