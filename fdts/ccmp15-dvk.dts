@@ -360,11 +360,11 @@
 		frac = <0x1a04>;
 	};
 
-	/* VCO = 508.0 MHz => P = 50, Q = 60, R = 60 */
+	/* VCO = 750.0 MHz => P = 125, Q = 62.5, R = 62.5 */
 	pll4: st,pll@3 {
 		compatible = "st,stm32mp1-pll";
 		reg = <3>;
-		cfg = <1 49 11 9 9 PQR(1,1,1)>;
+		cfg = <3 124 5 11 11 PQR(1,1,1)>;
 	};
 };
 
