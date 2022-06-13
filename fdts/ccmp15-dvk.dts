@@ -391,20 +391,20 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-ddr50;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_a>;
-	non-removable;
-	no-sd;
-	no-sdio;
-	st,neg-edge;
-	bus-width = <8>;
-	vmmc-supply = <&v3v3>;
-	vqmmc-supply = <&vdd>;
-	mmc-ddr-3_3v;
+	pinctrl-0 = <&sdmmc2_b4_pins_a>;
+	disable-wp;
+	bus-width = <4>;
+	/* Power option via 0-ohm resistor */
+	/* vmmc-supply = <&vdd_sd>; */
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-ddr50;
 	status = "okay";
 };
 
