@@ -966,6 +966,10 @@ int clk_stm32_osc_gate_enable(struct stm32_clk_priv *priv, int id)
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
 
+	if (osc_data->frequency == 0UL) {
+		return 0;
+	}
+
 	_clk_stm32_gate_enable(priv, osc_data->gate_id);
 
 	if (_clk_stm32_gate_wait_ready(priv, osc_data->gate_rdy_id, true) != 0U) {
@@ -979,6 +983,10 @@ int clk_stm32_osc_gate_enable(struct stm32_clk_priv *priv, int id)
 void clk_stm32_osc_gate_disable(struct stm32_clk_priv *priv, int id)
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
+
+	if (osc_data->frequency == 0UL) {
+		return;
+	}
 
 	_clk_stm32_gate_disable(priv, osc_data->gate_id);
 
