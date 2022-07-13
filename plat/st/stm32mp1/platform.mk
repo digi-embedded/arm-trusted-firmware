@@ -41,10 +41,10 @@ STM32MP15		:=	0
 else ifeq ($(STM32MP15),1)
 STM32MP13		:=	0
 STM32MP15		:=	1
-else ifneq ($(findstring stm32mp13,$(DTB_FILE_NAME)),)
+else ifneq ($(findstring mp13,$(DTB_FILE_NAME)),)
 STM32MP13		:=	1
 STM32MP15		:=	0
-else ifneq ($(findstring stm32mp15,$(DTB_FILE_NAME)),)
+else ifneq ($(findstring mp15,$(DTB_FILE_NAME)),)
 STM32MP13		:=	0
 STM32MP15		:=	1
 endif
