@@ -187,7 +187,10 @@ endif
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_FW_CONFIG},--fw-config))
 # Add the HW_CONFIG to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_HW_CONFIG},--hw-config))
-ifeq (${GENERATE_COT},1)
+ifeq ($(GENERATE_COT),1)
+STM32MP_CFG_CERT	:=	$(BUILD_PLAT)/stm32mp_cfg_cert.crt
+# Add the STM32MP_CFG_CERT to FIP and specify the same to certtool
+$(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_CFG_CERT},--stm32mp-cfg-cert))
 $(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/tb_fw.crt,--tb-fw-cert))
 endif
 $(eval $(call CERT_ADD_CMD_OPT,${BUILD_PLAT}/bl2.bin,--tb-fw))
