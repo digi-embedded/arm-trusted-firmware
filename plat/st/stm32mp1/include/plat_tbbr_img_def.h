@@ -32,7 +32,9 @@
 #define FWU_METADATA_IMAGE_ID		U(12)
 #define BKUP_FWU_METADATA_IMAGE_ID	U(13)
 #define TOS_FW_CONFIG_ID		U(16)
+#define STM32MP_CONFIG_CERT_ID		U(17)
 
-#define MAX_NUMBER_IDS			U(17)
+/* Increase the MAX_NUMBER_IDS to match the authentication pool required */
+#define MAX_NUMBER_IDS			U(19)
 
 #endif	/* STM32MP1_IMG_DEF_H */
