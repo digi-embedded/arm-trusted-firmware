@@ -671,7 +671,6 @@ static const auth_img_desc_t * const cot_desc[] = {
 	[NON_TRUSTED_FW_CONTENT_CERT_ID]	=	&non_trusted_fw_content_cert,
 	[BL33_IMAGE_ID]				=	&bl33_image,
 	[NT_FW_CONFIG_ID]			=	&nt_fw_config,
-	[FW_CONFIG_ID]				=	&fw_config,
 #if defined(SPD_spmd)
 	[SIP_SP_CONTENT_CERT_ID]		=	&sip_sp_content_cert,
 	[SP_PKG1_ID]				=	&sp_pkg1,
