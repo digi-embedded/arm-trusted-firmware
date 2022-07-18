@@ -12,9 +12,9 @@ cot {
 	manifests {
 		compatible = "arm, cert-descs";
 
-		stm32mp1_cfg_cert: stm32mp1_cfg_cert {
+		stm32mp_cfg_cert: stm32mp_cfg_cert {
 			root-certificate;
-			image-id = <STM32MP1_CONFIG_CERT_ID>;
+			image-id = <STM32MP_CONFIG_CERT_ID>;
 			antirollback-counter = <&trusted_nv_counter>;
 
 			hw_config_hash: hw_config_hash {
@@ -98,13 +98,13 @@ cot {
 
 		hw_config {
 			image-id = <HW_CONFIG_ID>;
-			parent = <&stm32mp1_cfg_cert>;
+			parent = <&stm32mp_cfg_cert>;
 			hash = <&hw_config_hash>;
 		};
 
 		fw_config {
 			image-id = <FW_CONFIG_ID>;
-			parent = <&stm32mp1_cfg_cert>;
+			parent = <&stm32mp_cfg_cert>;
 			hash = <&fw_config_hash>;
 		};
 

@@ -84,7 +84,7 @@
 			hw_cfg_uuid = "08b8f1d9-c9cf-9349-a962-6fbc6b7265cc";
 			tos_fw_cfg_uuid = "26257c1a-dbc6-7f47-8d96-c4c4b0248021";
 #if TRUSTED_BOARD_BOOT
-			stm32mp1_cfg_cert_uuid = "501d8dd2-8bce-49a5-84eb-559a9f2eaeaf";
+			stm32mp_cfg_cert_uuid = "501d8dd2-8bce-49a5-84eb-559a9f2eaeaf";
 			t_key_cert_uuid = "827ee890-f860-e411-a1b4-777a21b4f94c";
 			tos_fw_key_cert_uuid = "9477d603-fb60-e411-85dd-b7105b8cee04";
 			nt_fw_key_cert_uuid = "8ad5832a-fb60-e411-8aaf-df30bbc49859";

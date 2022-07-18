@@ -191,10 +191,7 @@ ifeq ($(GENERATE_COT),1)
 STM32MP_CFG_CERT	:=	$(BUILD_PLAT)/stm32mp_cfg_cert.crt
 # Add the STM32MP_CFG_CERT to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_CFG_CERT},--stm32mp-cfg-cert))
-$(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/tb_fw.crt,--tb-fw-cert))
 endif
-$(eval $(call CERT_ADD_CMD_OPT,${BUILD_PLAT}/bl2.bin,--tb-fw))
-CRT_DEPS+=${BUILD_PLAT}/bl2.bin
 ifeq ($(AARCH32_SP),sp_min)
 STM32MP_TOS_FW_CONFIG	:= $(addprefix ${BUILD_PLAT}/fdts/, $(patsubst %.dtb,%-bl32.dtb,$(DTB_FILE_NAME)))
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_TOS_FW_CONFIG},--tos-fw-config))
@@ -371,8 +368,8 @@ MBEDTLS_CONFIG_FILE	?=	"<stm32mp15_mbedtls_config.h>"
 
 include drivers/auth/mbedtls/mbedtls_x509.mk
 
-
-AUTH_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_common.c			\
+COT_DESC_IN_DTB		:=	1
+AUTH_SOURCES		+=	lib/fconf/fconf_cot_getter.c				\
 				lib/fconf/fconf_tbbr_getter.c				\
 				plat/st/common/stm32mp_crypto_lib.c
 
@@ -380,8 +377,6 @@ ifeq ($(STM32MP13),1)
 AUTH_SOURCES		+=	drivers/st/crypto/stm32_pka.c
 AUTH_SOURCES		+=	drivers/st/crypto/stm32_saes.c
 endif
-
-BL2_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_bl2.c
 
 BL2_SOURCES		+=	$(AUTH_SOURCES)						\
 				plat/st/common/stm32mp_trusted_boot.c
