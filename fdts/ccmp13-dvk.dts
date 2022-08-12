@@ -51,8 +51,8 @@
 };
 
 &bsec {
-	board_id: board_id@f0 {
-		reg = <0xf0 0x4>;
+	hwid: hwid@ec {
+		reg = <0xec 0xc>;
 		st,non-secure-otp;
 	};
 };
