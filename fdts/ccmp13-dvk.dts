@@ -18,7 +18,7 @@
 	compatible = "digi,ccmp13-dvk", "digi,ccmp13", "st,stm32mp133";
 
 	aliases {
-		serial0 = &uart4;
+		serial0 = &uart5;
 		serial1 = &usart1;
 		serial2 = &uart8;
 		serial3 = &usart2;
@@ -194,7 +194,7 @@
 		CLK_USBO_USBPHY
 		CLK_I2C12_HSI
 		CLK_UART2_HSI
-		CLK_UART4_HSI
+		CLK_UART35_HSI
 	>;
 
 	st,clkdiv = <
@@ -301,21 +301,24 @@
 	status = "okay";
 };
 
-&uart4 {
+/* Console */
+&uart5 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart4_pins_a>;
+	pinctrl-0 = <&uart5_pins_a>;
 	status = "okay";
 };
 
-&uart8 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart8_pins_a>;
-	status = "disabled";
-};
-
-&usart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usart1_pins_a>;
-	uart-has-rtscts;
-	status = "disabled";
+&pinctrl {
+	uart5_pins_a: uart5-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('A', 0, AF8)>; /* UART5_TX */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+		pins2 {
+			pinmux = <STM32_PINMUX('F', 13, AF8)>; /* UART5_RX */
+			bias-disable;
+		};
+	};
 };
