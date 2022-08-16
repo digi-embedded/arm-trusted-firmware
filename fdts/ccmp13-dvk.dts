@@ -10,7 +10,8 @@
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include "stm32mp133.dtsi"
 #include "stm32mp13xc.dtsi"
-#include "stm32mp13-ddr3-1x4Gb-1066-binF.dtsi"
+#include "ccmp1-ddr3l-1x2Gb-1066-binG.dtsi"
+#include "stm32mp13-ddr.dtsi"		/* DDR */
 #include "stm32mp13-pinctrl.dtsi"
 
 / {
