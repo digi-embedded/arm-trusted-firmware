@@ -8,8 +8,8 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
-#include "stm32mp133.dtsi"
-#include "stm32mp13xc.dtsi"
+#include "stm32mp135.dtsi"
+#include "stm32mp13xf.dtsi"
 #include "ccmp1-ddr3l-1x2Gb-1066-binG.dtsi"
 #include "stm32mp13-ddr.dtsi"		/* DDR */
 #include "stm32mp13-pinctrl.dtsi"
@@ -175,6 +175,10 @@
 	status = "okay";
 };
 
+&pka {
+	status = "okay";
+};
+
 &pwr_regulators {
 	vdd-supply = <&vdd>;
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
@@ -196,6 +200,7 @@
 		CLK_I2C12_HSI
 		CLK_UART2_HSI
 		CLK_UART35_HSI
+		CLK_SAES_AXI
 	>;
 
 	st,clkdiv = <
@@ -289,6 +294,10 @@
 };
 
 &rng {
+	status = "okay";
+};
+
+&saes {
 	status = "okay";
 };
 

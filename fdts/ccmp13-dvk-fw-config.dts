@@ -6,3 +6,4 @@
 
 #define DDR_SIZE	0x10000000 /* 256MB */
 #include "stm32mp13-fw-config.dtsi"
+#include "stm32mp13-fw-config-mem-encrypt.dtsi"
