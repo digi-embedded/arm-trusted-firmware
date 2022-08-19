@@ -362,6 +362,14 @@ NTFW_NVCTR_VAL		:=	0
 KEY_SIZE		:=
 KEY_ALG			:=	ecdsa
 HASH_ALG		:=	sha256
+
+ifeq (${SAVE_KEYS},1)
+TRUSTED_WORLD_KEY	?=	${BUILD_PLAT}/trusted.pem
+NON_TRUSTED_WORLD_KEY	?=	${BUILD_PLAT}/non-trusted.pem
+BL32_KEY		?=	${BUILD_PLAT}/trusted_os.pem
+BL33_KEY		?=	${BUILD_PLAT}/non-trusted_os.pem
+endif
+
 endif
 TF_MBEDTLS_KEY_ALG 	:=	ecdsa
 MBEDTLS_CONFIG_FILE	?=	"<stm32mp15_mbedtls_config.h>"
