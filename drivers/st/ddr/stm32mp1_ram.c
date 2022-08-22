@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2018-2022, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
  */
@@ -160,6 +160,9 @@ static int stm32mp1_ddr_setup(void)
 
 	/* Save DDR self_refresh state */
 	ddr_self_refresh = config.self_refresh;
+
+	/* Flush the value that will be used during MMU OFF sequence */
+	flush_dcache_range((uintptr_t)&ddr_self_refresh, sizeof(ddr_self_refresh));
 
 	return 0;
 }
