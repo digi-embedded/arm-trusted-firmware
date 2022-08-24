@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2022, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,6 +9,7 @@
 
 #include <arch_helpers.h>
 #include <context.h>
+#include <drivers/arm/tzc400.h>
 #include <drivers/clk.h>
 #include <drivers/regulator.h>
 #include <drivers/st/stm32_rtc.h>
@@ -84,6 +85,23 @@ struct backup_data_s {
 };
 
 #if defined(IMAGE_BL32)
+#define STM32MP1_TZC_REGION_OFFSET(num_region)		(U(0x20) * ((num_region) - U(1)))
+#define STM32MP1_TZC_REGION_LOW(num_region)		(U(0x120) + \
+							 STM32MP1_TZC_REGION_OFFSET(num_region))
+#define STM32MP1_TZC_REGION_TOP(num_region)		(U(0x128) + \
+							 STM32MP1_TZC_REGION_OFFSET(num_region))
+#define STM32MP1_TZC_REGION_ATTRIBUTE(num_region)	(U(0x130) + \
+							 STM32MP1_TZC_REGION_OFFSET(num_region))
+#define STM32MP1_TZC_REGION_ACCESS(num_region)		(U(0x134) + \
+							 STM32MP1_TZC_REGION_OFFSET(num_region))
+
+struct tzc_regions {
+	uint32_t low;
+	uint32_t top;
+	uint32_t attribute;
+	uint32_t access;
+};
+
 struct backup_bl32_data_s {
 	uint32_t canary_id;
 	smc_ctx_t saved_smc_context[PLATFORM_CORE_COUNT];
@@ -93,6 +111,7 @@ struct backup_bl32_data_s {
 	uint8_t clock_cfg[CLOCK_CONTEXT_SIZE];
 	uint8_t scmi_context[SCMI_CONTEXT_SIZE];
 	uint8_t regul_context[PLAT_BACKUP_REGULATOR_SIZE];
+	struct tzc_regions tzc_backup_context[STM32MP1_TZC_MAX_REGIONS];
 };
 
 static struct backup_bl32_data_s *get_bl32_backup_data(void)
@@ -179,6 +198,55 @@ void stm32mp1_pm_restore_clock_cfg(size_t offset, uint8_t *data, size_t size)
 	clk_disable(BKPSRAM);
 }
 
+static void tzc_backup_context_save(struct tzc_regions *regions)
+{
+	unsigned int i;
+
+	assert(regions != NULL);
+
+	zeromem(regions, sizeof(struct tzc_regions) * STM32MP1_TZC_MAX_REGIONS);
+
+	tzc400_init(STM32MP1_TZC_BASE);
+
+	for (i = 0U; i < STM32MP1_TZC_MAX_REGIONS; i++) {
+		unsigned int reg_num = i + 1U;
+
+		regions[i].low = mmio_read_32(STM32MP1_TZC_BASE +
+					      STM32MP1_TZC_REGION_LOW(reg_num));
+		regions[i].top = mmio_read_32(STM32MP1_TZC_BASE +
+					      STM32MP1_TZC_REGION_TOP(reg_num));
+		regions[i].attribute = mmio_read_32(STM32MP1_TZC_BASE +
+						    STM32MP1_TZC_REGION_ATTRIBUTE(reg_num));
+		regions[i].access = mmio_read_32(STM32MP1_TZC_BASE +
+						 STM32MP1_TZC_REGION_ACCESS(reg_num));
+	}
+}
+
+static void tzc_backup_context_restore(struct tzc_regions *regions)
+{
+	unsigned int i;
+
+	assert(regions != NULL);
+
+	tzc400_init(STM32MP1_TZC_BASE);
+
+	for (i = 0U; i < STM32MP1_TZC_MAX_REGIONS; i++) {
+		unsigned int reg_num = i + 1U;
+
+		mmio_write_32(STM32MP1_TZC_BASE + STM32MP1_TZC_REGION_LOW(reg_num),
+			      regions[i].low);
+		mmio_write_32(STM32MP1_TZC_BASE + STM32MP1_TZC_REGION_TOP(reg_num),
+			      regions[i].top);
+		mmio_write_32(STM32MP1_TZC_BASE + STM32MP1_TZC_REGION_ATTRIBUTE(reg_num),
+			      regions[i].attribute);
+		mmio_write_32(STM32MP1_TZC_BASE + STM32MP1_TZC_REGION_ACCESS(reg_num),
+			      regions[i].access);
+	}
+
+	/* Disable Region 0 access */
+	tzc400_configure_region0(TZC_REGION_S_NONE, 0);
+}
+
 int stm32_save_context(uint32_t zq0cr0_zdata,
 		       struct stm32_rtc_calendar *rtc_time,
 		       unsigned long long stgen_cnt)
@@ -231,6 +299,8 @@ int stm32_save_context(uint32_t zq0cr0_zdata,
 	regulator_core_backup_context(backup_bl32_data->regul_context,
 				      sizeof(backup_bl32_data->regul_context));
 
+	tzc_backup_context_save(backup_bl32_data->tzc_backup_context);
+
 	clk_disable(BKPSRAM);
 
 	return 0;
@@ -267,6 +337,8 @@ int stm32_restore_context(void)
 	cpu_context = cm_get_context(NON_SECURE);
 
 	restore_clock_pm_context();
+
+	tzc_backup_context_restore(backup_bl32_data->tzc_backup_context);
 
 	stm32mp1_pm_restore_scmi_state(backup_bl32_data->scmi_context,
 				       sizeof(backup_bl32_data->scmi_context));
