@@ -54,6 +54,8 @@ static void crypto_lib_init(void)
 
 	int ret;
 
+	NOTICE("TRUSTED_BOARD_BOOT support enabled\n");
+
 	if (!stm32mp_is_closed_device() && !stm32mp_is_auth_supported()) {
 		return;
 	}
