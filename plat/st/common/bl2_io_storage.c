@@ -554,7 +554,7 @@ int plat_get_image_source(unsigned int image_id, uintptr_t *dev_handle,
  * This function shall return 0 if it cannot find an alternate
  * image to be loaded or it returns 1 otherwise.
  */
-int plat_try_next_boot_source(unsigned int image_id)
+int plat_try_backup_partitions(unsigned int image_id)
 {
 	static unsigned int backup_id;
 	static unsigned int backup_nb;
