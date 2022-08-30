@@ -263,7 +263,7 @@ int load_auth_image(unsigned int image_id, image_info_t *image_data)
 #else
 	do {
 		err = load_auth_image_internal(image_id, image_data);
-	} while ((err != 0) && (plat_try_next_boot_source(image_id) != 0));
+	} while ((err != 0) && (plat_try_next_boot_source() != 0));
 #endif /* PSA_FWU_SUPPORT */
 
 	return err;

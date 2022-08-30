@@ -69,7 +69,7 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 	return 0;
 }
 
-int plat_try_next_boot_source(unsigned int image_id)
+int plat_try_next_boot_source(void)
 {
 	return 0;
 }
