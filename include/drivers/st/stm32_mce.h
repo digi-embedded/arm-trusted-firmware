@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2020-2022, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,6 +19,16 @@
 
 /* IP configuration */
 #define MCE_IP_MAX_REGION_NB		1U
+
+struct stm32_mce_region_s {
+	uint32_t encrypt_mode;	/*
+				 * Specifies the region encryption mode.
+				 * This parameter can be a value of
+				 * @ref MCE_*_MODE (in driver header file).
+				 */
+	uint32_t start_address;	/* Specifies the region start address */
+	uint32_t end_address;	/* Specifies the region end address */
+};
 
 void stm32_mce_init(void);
 

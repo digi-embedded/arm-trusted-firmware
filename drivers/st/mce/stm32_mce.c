@@ -82,16 +82,6 @@ struct mce_dt_id_attr {
 	fdt32_t id_attr[MCE_IP_MAX_REGION_NB];
 };
 
-struct stm32_mce_region_s {
-	uint32_t encrypt_mode;	/*
-				 * Specifies the region encryption mode.
-				 * This parameter can be a value of
-				 * @ref MCE_*_MODE (in driver header file).
-				 */
-	uint32_t start_address;	/* Specifies the region start address */
-	uint32_t end_address;	/* Specifies the region end address */
-};
-
 /*
  * @brief  Configure privileged access to the MCE registers.
  * @param  privilege: Only privileged (true) or all (false) access are granted.
