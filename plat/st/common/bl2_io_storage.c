@@ -431,6 +431,10 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
 	static bool gpt_init_done __unused;
 	uint16_t boot_itf = stm32mp_get_boot_itf_selected();
 
+	if (stm32mp_skip_boot_device_after_standby()) {
+		return 0;
+	}
+
 	switch (boot_itf) {
 #if STM32MP_SDMMC || STM32MP_EMMC
 	case BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_SD:
