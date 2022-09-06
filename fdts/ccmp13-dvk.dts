@@ -62,6 +62,22 @@
 	cpu-supply = <&vddcpu>;
 };
 
+&fmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fmc_pins_a>;
+	status = "okay";
+	nand-controller@4,0 {
+		status = "okay";
+
+		nand@0 {
+			reg = <0>;
+			nand-on-flash-bbt;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+	};
+};
+
 &hash {
 	status = "okay";
 };
@@ -319,6 +335,31 @@
 };
 
 &pinctrl {
+	fmc_pins_a: fmc-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('D', 4, AF12)>, /* FMC_NOE */
+				 <STM32_PINMUX('D', 5, AF12)>, /* FMC_NWE */
+				 <STM32_PINMUX('D', 11, AF12)>, /* FMC_CLE */
+				 <STM32_PINMUX('D', 12, AF12)>, /* FMC_ALE */
+				 <STM32_PINMUX('D', 14, AF12)>, /* FMC_D0 */
+				 <STM32_PINMUX('D', 15, AF12)>, /* FMC_D1 */
+				 <STM32_PINMUX('D', 0, AF12)>, /* FMC_D2 */
+				 <STM32_PINMUX('D', 1, AF12)>, /* FMC_D3 */
+				 <STM32_PINMUX('E', 7, AF12)>, /* FMC_D4 */
+				 <STM32_PINMUX('E', 8, AF12)>, /* FMC_D5 */
+				 <STM32_PINMUX('E', 9, AF12)>, /* FMC_D6 */
+				 <STM32_PINMUX('E', 10, AF12)>, /* FMC_D7 */
+				 <STM32_PINMUX('G', 9, AF12)>; /* FMC_NCE */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <1>;
+		};
+		pins2 {
+			pinmux = <STM32_PINMUX('A', 9, AF10)>; /* FMC_NWAIT */
+			bias-pull-up;
+		};
+	};
+
 	uart5_pins_a: uart5-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('A', 0, AF8)>; /* UART5_TX */
