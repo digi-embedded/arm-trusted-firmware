@@ -48,7 +48,7 @@ uintptr_t fip_dev_handle;
 uintptr_t storage_dev_handle;
 
 static const io_dev_connector_t *fip_dev_con;
-static uint32_t nand_bkp_offset;
+static uint32_t nand_block_sz;
 
 #ifndef DECRYPTION_SUPPORT_none
 static const io_dev_connector_t *enc_dev_con;
@@ -278,7 +278,7 @@ static void boot_fmc2_nand(boot_api_context_t *boot_context)
 				&storage_dev_handle);
 	assert(io_result == 0);
 
-	nand_bkp_offset = nand_dev_spec.erase_size;
+	nand_block_sz = nand_dev_spec.erase_size;
 }
 #endif /* STM32MP_RAW_NAND */
 
@@ -299,7 +299,7 @@ static void boot_spi_nand(boot_api_context_t *boot_context)
 				&storage_dev_handle);
 	assert(io_result == 0);
 
-	nand_bkp_offset = spi_nand_dev_spec.erase_size;
+	nand_block_sz = spi_nand_dev_spec.erase_size;
 }
 #endif /* STM32MP_SPI_NAND */
 
@@ -564,33 +564,31 @@ int plat_get_image_source(unsigned int image_id, uintptr_t *dev_handle,
 int plat_try_backup_partitions(unsigned int image_id)
 {
 	static unsigned int backup_id;
-	static unsigned int backup_nb;
+	static unsigned int backup_block_nb;
 
-	/* No backup available */
-	if (nand_bkp_offset == 0U) {
+	/* Check if NAND storage used */
+	if (nand_block_sz == 0U) {
 		return 0;
 	}
 
 	if (backup_id != image_id) {
-		backup_nb = 0;
+		backup_block_nb = PLATFORM_MTD_MAX_PART_SIZE / nand_block_sz;
 		backup_id = image_id;
 	}
 
-	backup_nb++;
-
-	if (backup_nb >= PLATFORM_MTD_BACKUP_BLOCKS) {
+	if (backup_block_nb-- == 0U) {
 		return 0;
 	}
 
 #if PSA_FWU_SUPPORT
 	if (((image_block_spec.offset < STM32MP_NAND_FIP_B_OFFSET) &&
-	     ((image_block_spec.offset + nand_bkp_offset) >= STM32MP_NAND_FIP_B_OFFSET)) ||
-	    (image_block_spec.offset + nand_bkp_offset >= STM32MP_NAND_FIP_B_MAX_OFFSET)) {
+	     ((image_block_spec.offset + nand_block_sz) >= STM32MP_NAND_FIP_B_OFFSET)) ||
+	    (image_block_spec.offset + nand_block_sz >= STM32MP_NAND_FIP_B_MAX_OFFSET)) {
 		return 0;
 	}
 #endif
 
-	image_block_spec.offset += nand_bkp_offset;
+	image_block_spec.offset += nand_block_sz;
 
 	return 1;
 }

@@ -215,9 +215,9 @@ enum ddr_type {
 #endif
 /*
  * Only used for MTD devices that need some backup blocks.
- * Must define a number of reserved blocks (depends on devices).
+ * Must define a maximum size for a partition.
  */
-#define PLATFORM_MTD_BACKUP_BLOCKS	U(20)	/* (20 * MTD block size) */
+#define PLATFORM_MTD_MAX_PART_SIZE	U(0x00400000)
 
 /*******************************************************************************
  * STM32MP1 device/io map related constants (used for MMU)
