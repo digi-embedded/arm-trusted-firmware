@@ -773,6 +773,6 @@ int plat_fwu_set_metadata_image_source(unsigned int image_id,
 
 bool plat_fwu_is_enabled(void)
 {
-	return true;
+	return !stm32mp_skip_boot_device_after_standby();
 }
 #endif /* PSA_FWU_SUPPORT */
