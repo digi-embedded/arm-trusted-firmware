@@ -811,7 +811,7 @@ int regulator_register(const struct regul_description *desc, int node)
 	}
 
 	if (rdev == rdev_array + PLAT_NB_RDEVS) {
-		WARN("out of memory\n");
+		WARN("Not enough place for regulators, PLAT_NB_RDEVS should be increased.\n");
 		return -ENOMEM;
 	}
 
