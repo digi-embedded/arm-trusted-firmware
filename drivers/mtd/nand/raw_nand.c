@@ -331,7 +331,10 @@ static int nand_read_param_page(void)
 				     page.num_blk_in_lun * page.num_lun;
 
 	if (page.nb_ecc_bits != GENMASK_32(7, 0)) {
-		rawnand_dev.nand_dev->ecc.max_bit_corr = page.nb_ecc_bits;
+		if (page.nb_ecc_bits == 0)
+			rawnand_dev.nand_dev->ecc.max_bit_corr = 8;
+		else
+			rawnand_dev.nand_dev->ecc.max_bit_corr = page.nb_ecc_bits;
 		rawnand_dev.nand_dev->ecc.size = SZ_512;
 	}
 
