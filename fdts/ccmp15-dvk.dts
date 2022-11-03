@@ -351,22 +351,6 @@
 	status = "okay";
 };
 
-&sdmmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
-	disable-wp;
-	st,sig-dir;
-	st,neg-edge;
-	st,use-ckin;
-	bus-width = <4>;
-	vmmc-supply = <&vdd_sd>;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-ddr50;
-	status = "disabled";
-};
-
 &sdmmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc2_b4_pins_a>;
