@@ -356,8 +356,7 @@
 	pinctrl-0 = <&sdmmc2_b4_pins_a>;
 	disable-wp;
 	bus-width = <4>;
-	/* Power option via 0-ohm resistor */
-	/* vmmc-supply = <&vdd_sd>; */
+	vmmc-supply = <&v3v3>;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
