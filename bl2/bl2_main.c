@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2022, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -86,7 +86,9 @@ void bl2_main(void)
 	bl2_arch_setup();
 
 #if PSA_FWU_SUPPORT
-	fwu_init();
+	if (plat_fwu_is_enabled()) {
+		fwu_init();
+	}
 #endif /* PSA_FWU_SUPPORT */
 
 #if TRUSTED_BOARD_BOOT

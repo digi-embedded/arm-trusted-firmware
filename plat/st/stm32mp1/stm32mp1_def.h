@@ -10,6 +10,7 @@
 #include <common/tbbr/tbbr_img_def.h>
 #include <drivers/st/stm32mp1_rcc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
+#include <dt-bindings/gpio/stm32-gpio.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
 #include <dt-bindings/soc/st,stm32-etzpc.h>
 #include <lib/utils_def.h>
@@ -88,11 +89,6 @@
 #define PKG_AC_TFBGA361		U(2)
 #define PKG_AD_TFBGA257		U(1)
 #endif
-
-/*******************************************************************************
- * BOOT PARAM
- ******************************************************************************/
-#define BOOT_PARAM_ADDR			U(0x2FFC0078)
 
 /*******************************************************************************
  * STM32MP1 memory map related constants
@@ -219,9 +215,9 @@ enum ddr_type {
 #endif
 /*
  * Only used for MTD devices that need some backup blocks.
- * Must define a number of reserved blocks (depends on devices).
+ * Must define a maximum size for a partition.
  */
-#define PLATFORM_MTD_BACKUP_BLOCKS	U(20)	/* (20 * MTD block size) */
+#define PLATFORM_MTD_MAX_PART_SIZE	U(0x00400000)
 
 /*******************************************************************************
  * STM32MP1 device/io map related constants (used for MMU)
@@ -277,21 +273,7 @@ enum ddr_type {
 #endif
 #define GPIO_BANK_OFFSET		U(0x1000)
 
-/* Bank IDs used in GPIO driver API */
-#define GPIO_BANK_A			U(0)
-#define GPIO_BANK_B			U(1)
-#define GPIO_BANK_C			U(2)
-#define GPIO_BANK_D			U(3)
-#define GPIO_BANK_E			U(4)
-#define GPIO_BANK_F			U(5)
-#define GPIO_BANK_G			U(6)
-#define GPIO_BANK_H			U(7)
-#define GPIO_BANK_I			U(8)
 #if STM32MP15
-#define GPIO_BANK_J			U(9)
-#define GPIO_BANK_K			U(10)
-#define GPIO_BANK_Z			U(25)
-
 #define STM32MP_GPIOZ_PIN_MAX_COUNT	8
 #endif
 
@@ -357,6 +339,7 @@ enum ddr_type {
  * STM32MP1 TZC (TZ400)
  ******************************************************************************/
 #define STM32MP1_TZC_BASE		U(0x5C006000)
+#define STM32MP1_TZC_MAX_REGIONS	U(8)
 
 #if STM32MP13
 #define STM32MP1_FILTER_BIT_ALL		TZC_400_REGION_ATTR_FILTER_BIT(0)
@@ -654,7 +637,9 @@ static inline uintptr_t tamp_bkpr(uint32_t idx)
 /* 3 PWR + 1 VREFBUF + 14 PMIC regulators + 1 FIXED */
 #define PLAT_NB_RDEVS			U(19)
 /* 2 FIXED */
-#define PLAT_NB_FIXED_REGS		U(2)
+#define PLAT_NB_FIXED_REGUS		U(2)
+/* No GPIO regu */
+#define PLAT_NB_GPIO_REGUS		U(0)
 /* Number of low power modes defined in the device tree */
 #define PLAT_NB_SUSPEND_MODES		7
 

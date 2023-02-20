@@ -477,7 +477,7 @@ void sp_min_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		panic();
 	}
 
-	if (bl33_image_ep_info.args.arg2 != 0U) {
+	if ((bl33_image_ep_info.pc != 0U) && (bl33_image_ep_info.args.arg2 != 0U)) {
 		populate_ns_dt(bl33_image_ep_info.args.arg2);
 	}
 

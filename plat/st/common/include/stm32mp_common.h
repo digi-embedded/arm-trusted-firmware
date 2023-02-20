@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2018-2022, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -80,6 +80,8 @@ static inline void stm32mp_setup_early_console(void)
 #endif
 
 void stm32mp_set_console_after_standby(void);
+
+bool stm32mp_skip_boot_device_after_standby(void);
 
 /*
  * Platform util functions for the GPIO driver

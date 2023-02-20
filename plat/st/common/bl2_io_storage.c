@@ -48,7 +48,7 @@ uintptr_t fip_dev_handle;
 uintptr_t storage_dev_handle;
 
 static const io_dev_connector_t *fip_dev_con;
-static uint32_t nand_bkp_offset;
+static uint32_t nand_block_sz;
 
 #ifndef DECRYPTION_SUPPORT_none
 static const io_dev_connector_t *enc_dev_con;
@@ -278,7 +278,7 @@ static void boot_fmc2_nand(boot_api_context_t *boot_context)
 				&storage_dev_handle);
 	assert(io_result == 0);
 
-	nand_bkp_offset = nand_dev_spec.erase_size;
+	nand_block_sz = nand_dev_spec.erase_size;
 }
 #endif /* STM32MP_RAW_NAND */
 
@@ -299,7 +299,7 @@ static void boot_spi_nand(boot_api_context_t *boot_context)
 				&storage_dev_handle);
 	assert(io_result == 0);
 
-	nand_bkp_offset = spi_nand_dev_spec.erase_size;
+	nand_block_sz = spi_nand_dev_spec.erase_size;
 }
 #endif /* STM32MP_SPI_NAND */
 
@@ -431,6 +431,10 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
 	static bool gpt_init_done __unused;
 	uint16_t boot_itf = stm32mp_get_boot_itf_selected();
 
+	if (stm32mp_skip_boot_device_after_standby()) {
+		return 0;
+	}
+
 	switch (boot_itf) {
 #if STM32MP_SDMMC || STM32MP_EMMC
 	case BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_SD:
@@ -480,7 +484,14 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
 #if STM32MP_SPI_NAND
 	case BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_NAND_QSPI:
 #endif
+/*
+ * With FWU Multi Bank feature enabled, the selection of
+ * the image to boot will be done by fwu_init calling the
+ * platform hook, plat_fwu_set_images_source.
+ */
+#if !PSA_FWU_SUPPORT
 		image_block_spec.offset = STM32MP_NAND_FIP_OFFSET;
+#endif
 		break;
 #endif
 
@@ -550,28 +561,34 @@ int plat_get_image_source(unsigned int image_id, uintptr_t *dev_handle,
  * This function shall return 0 if it cannot find an alternate
  * image to be loaded or it returns 1 otherwise.
  */
-int plat_try_next_boot_source(unsigned int image_id)
+int plat_try_backup_partitions(unsigned int image_id)
 {
 	static unsigned int backup_id;
-	static unsigned int backup_nb;
+	static unsigned int backup_block_nb;
 
-	/* No backup available */
-	if (nand_bkp_offset == 0U) {
+	/* Check if NAND storage used */
+	if (nand_block_sz == 0U) {
 		return 0;
 	}
 
 	if (backup_id != image_id) {
-		backup_nb = 0;
+		backup_block_nb = PLATFORM_MTD_MAX_PART_SIZE / nand_block_sz;
 		backup_id = image_id;
 	}
 
-	backup_nb++;
-
-	if (backup_nb >= PLATFORM_MTD_BACKUP_BLOCKS) {
+	if (backup_block_nb-- == 0U) {
 		return 0;
 	}
 
-	image_block_spec.offset += nand_bkp_offset;
+#if PSA_FWU_SUPPORT
+	if (((image_block_spec.offset < STM32MP_NAND_FIP_B_OFFSET) &&
+	     ((image_block_spec.offset + nand_block_sz) >= STM32MP_NAND_FIP_B_OFFSET)) ||
+	    (image_block_spec.offset + nand_block_sz >= STM32MP_NAND_FIP_B_MAX_OFFSET)) {
+		return 0;
+	}
+#endif
+
+	image_block_spec.offset += nand_block_sz;
 
 	return 1;
 }
@@ -675,8 +692,14 @@ void plat_fwu_set_images_source(const struct fwu_metadata *metadata)
 		}
 #endif
 #if (STM32MP_SPI_NAND || STM32MP_RAW_NAND)
-#error "FWU NAND not yet implemented"
-		panic();
+		if (guidcmp(img_uuid, &STM32MP_NAND_FIP_A_GUID) == 0) {
+			image_spec->offset = STM32MP_NAND_FIP_A_OFFSET;
+		} else if (guidcmp(img_uuid, &STM32MP_NAND_FIP_B_GUID) == 0) {
+			image_spec->offset = STM32MP_NAND_FIP_B_OFFSET;
+		} else {
+			ERROR("Invalid uuid mentioned in metadata\n");
+			panic();
+		}
 #endif
 	}
 }
@@ -719,6 +742,17 @@ static int plat_set_image_source(unsigned int image_id,
 
 	spec->length = sizeof(struct fwu_metadata);
 #endif
+
+#if (STM32MP_SPI_NAND || STM32MP_RAW_NAND)
+	if (image_id == FWU_METADATA_IMAGE_ID) {
+		spec->offset = STM32MP_NAND_METADATA1_OFFSET;
+	} else {
+		spec->offset = STM32MP_NAND_METADATA2_OFFSET;
+	}
+
+	spec->length = sizeof(struct fwu_metadata);
+#endif
+
 	*image_spec = policy->image_spec;
 	*handle = *policy->dev_handle;
 
@@ -733,5 +767,10 @@ int plat_fwu_set_metadata_image_source(unsigned int image_id,
 	       (image_id == BKUP_FWU_METADATA_IMAGE_ID));
 
 	return plat_set_image_source(image_id, handle, image_spec);
+}
+
+bool plat_fwu_is_enabled(void)
+{
+	return !stm32mp_skip_boot_device_after_standby();
 }
 #endif /* PSA_FWU_SUPPORT */

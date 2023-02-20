@@ -144,7 +144,7 @@ int clk_oscillator_wait_ready(struct stm32_clk_priv *priv, int id, bool ready_on
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
 
-	return _clk_stm32_gate_wait_ready(priv, osc_data->gate_id, ready_on);
+	return _clk_stm32_gate_wait_ready(priv, osc_data->gate_rdy_id, ready_on);
 }
 
 int clk_oscillator_wait_ready_on(struct stm32_clk_priv *priv, int id)
@@ -214,24 +214,6 @@ int _clk_stm32_gate_enable(struct stm32_clk_priv *priv, uint16_t gate_id)
 	}
 
 	return 0;
-}
-
-const char *_clk_stm32_get_name(struct stm32_clk_priv *priv, int id)
-{
-	return priv->clks[id].name;
-}
-
-const char *clk_stm32_get_name(struct stm32_clk_priv *priv,
-			       unsigned long binding_id)
-{
-	int id;
-
-	id = clk_get_index(priv, binding_id);
-	if (id == -EINVAL) {
-		return NULL;
-	}
-
-	return _clk_stm32_get_name(priv, id);
 }
 
 const struct clk_stm32 *_clk_get(struct stm32_clk_priv *priv, int id)
@@ -984,6 +966,10 @@ int clk_stm32_osc_gate_enable(struct stm32_clk_priv *priv, int id)
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
 
+	if (osc_data->frequency == 0UL) {
+		return 0;
+	}
+
 	_clk_stm32_gate_enable(priv, osc_data->gate_id);
 
 	if (_clk_stm32_gate_wait_ready(priv, osc_data->gate_rdy_id, true) != 0U) {
@@ -997,6 +983,10 @@ int clk_stm32_osc_gate_enable(struct stm32_clk_priv *priv, int id)
 void clk_stm32_osc_gate_disable(struct stm32_clk_priv *priv, int id)
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
+
+	if (osc_data->frequency == 0UL) {
+		return;
+	}
 
 	_clk_stm32_gate_disable(priv, osc_data->gate_id);
 

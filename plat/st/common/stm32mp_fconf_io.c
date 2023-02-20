@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2021-2022, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -27,7 +27,7 @@ static io_block_spec_t gpt_block_spec = {
 };
 #endif
 
-#if (STM32MP_SDMMC || STM32MP_EMMC || STM32MP_SPI_NOR) && PSA_FWU_SUPPORT
+#if PSA_FWU_SUPPORT
 io_block_spec_t metadata_block_spec = {
 	.offset = 0,    /* To be filled at runtime */
 	.length = 0,    /* To be filled at runtime */
@@ -74,7 +74,7 @@ struct plat_io_policy policies[MAX_NUMBER_IDS] = {
 #endif /* PSA_FWU_SUPPORT */
 };
 
-#define DEFAULT_UUID_NUMBER	U(8)
+#define DEFAULT_UUID_NUMBER	U(7)
 
 #if TRUSTED_BOARD_BOOT
 #define TBBR_UUID_NUMBER	U(6)
@@ -102,9 +102,8 @@ static const struct policies_load_info load_info[FCONF_ST_IO_UUID_NUMBER] = {
 	{BL33_IMAGE_ID, "bl33_uuid"},
 	{HW_CONFIG_ID, "hw_cfg_uuid"},
 	{TOS_FW_CONFIG_ID, "tos_fw_cfg_uuid"},
-	{NT_FW_CONFIG_ID, "nt_fw_cfg_uuid"},
 #if TRUSTED_BOARD_BOOT
-	{TRUSTED_BOOT_FW_CERT_ID, "t_boot_fw_cert_uuid"},
+	{STM32MP_CONFIG_CERT_ID, "stm32mp_cfg_cert_uuid"},
 	{TRUSTED_KEY_CERT_ID, "t_key_cert_uuid"},
 	{TRUSTED_OS_FW_KEY_CERT_ID, "tos_fw_key_cert_uuid"},
 	{NON_TRUSTED_FW_KEY_CERT_ID, "nt_fw_key_cert_uuid"},

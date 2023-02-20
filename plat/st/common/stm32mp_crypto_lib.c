@@ -54,6 +54,14 @@ static void crypto_lib_init(void)
 
 	int ret;
 
+	NOTICE("TRUSTED_BOARD_BOOT support enabled\n");
+
+	ret = stm32_hash_register();
+	if (ret != 0) {
+		ERROR("HASH init (%d)\n", ret);
+		panic();
+	}
+
 	if (!stm32mp_is_closed_device() && !stm32mp_is_auth_supported()) {
 		return;
 	}
@@ -76,12 +84,6 @@ static void crypto_lib_init(void)
 	auth_ops.verify_signature =
 		boot_context->bootrom_ecdsa_verify_signature;
 #endif
-
-	ret = stm32_hash_register();
-	if (ret != 0) {
-		ERROR("HASH init (%d)\n", ret);
-		panic();
-	}
 }
 
 int get_plain_pk_from_asn1(void *pk_ptr, unsigned int pk_len, void **plain_pk,
@@ -312,6 +314,10 @@ static int crypto_verify_signature(void *data_ptr, unsigned int data_len,
 	mbedtls_pk_type_t pk_alg;
 	size_t bignum_len = sizeof(sig) / 2U;
 	unsigned int seq_num = 0U;
+
+	if (!stm32mp_is_closed_device() && !stm32mp_is_auth_supported()) {
+		return CRYPTO_SUCCESS;
+	}
 
 	/* Get pointers to signature OID and parameters */
 	p = (unsigned char *)sig_alg;

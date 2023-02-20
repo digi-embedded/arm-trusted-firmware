@@ -124,18 +124,3 @@ const auth_img_desc_t hw_config = {
 		}
 	}
 };
-
-const auth_img_desc_t fw_config = {
-	.img_id = FW_CONFIG_ID,
-	.img_type = IMG_RAW,
-	.parent = &trusted_boot_fw_cert,
-	.img_auth_methods = (const auth_method_desc_t[AUTH_METHOD_NUM]) {
-		[0] = {
-			.type = AUTH_METHOD_HASH,
-			.param.hash = {
-				.data = &raw_data,
-				.hash = &fw_config_hash
-			}
-		}
-	}
-};

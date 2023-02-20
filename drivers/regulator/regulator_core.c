@@ -688,6 +688,7 @@ static void parse_low_power_modes(const void *fdt, struct rdev *rdev, int node)
 #else
 static int parse_properties(const void *fdt, struct rdev *rdev, int node)
 {
+	const fdt32_t *cuint;
 	int ret;
 
 	if (fdt_getprop(fdt, node, "regulator-always-on", NULL) != NULL) {
@@ -696,6 +697,13 @@ static int parse_properties(const void *fdt, struct rdev *rdev, int node)
 		if (ret != 0) {
 			return ret;
 		}
+	}
+
+	cuint = fdt_getprop(fdt, node, "regulator-enable-ramp-delay", NULL);
+	if (cuint != NULL) {
+		rdev->enable_ramp_delay = fdt32_to_cpu(*cuint);
+		VERBOSE("%s: enable_ramp_delay=%u\n", rdev->desc->node_name,
+			rdev->enable_ramp_delay);
 	}
 
 	return 0;
@@ -803,7 +811,7 @@ int regulator_register(const struct regul_description *desc, int node)
 	}
 
 	if (rdev == rdev_array + PLAT_NB_RDEVS) {
-		WARN("out of memory\n");
+		WARN("Not enough place for regulators, PLAT_NB_RDEVS should be increased.\n");
 		return -ENOMEM;
 	}
 

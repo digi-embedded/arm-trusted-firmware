@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2022, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <drivers/st/stm32_mce.h>
 #include <drivers/st/stm32_rtc.h>
 
 void stm32_clean_context(void);
@@ -32,6 +33,8 @@ uint32_t stm32_pm_get_optee_ep(void);
 #if STM32MP13
 void stm32mp1_pm_save_mce_mkey_in_context(uint8_t *data);
 void stm32mp1_pm_get_mce_mkey_from_context(uint8_t *data);
+void stm32mp1_pm_save_mce_region(uint32_t index, struct stm32_mce_region_s *config);
+void stm32mp1_pm_get_mce_region(uint32_t index, struct stm32_mce_region_s *config);
 #endif
 
 void stm32mp1_pm_save_clock_cfg(size_t offset, uint8_t *data, size_t size);

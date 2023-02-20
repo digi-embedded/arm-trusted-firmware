@@ -19,6 +19,7 @@
 #include <drivers/mmc.h>
 #include <drivers/st/bsec.h>
 #include <drivers/st/regulator_fixed.h>
+#include <drivers/st/regulator_gpio.h>
 #include <drivers/st/stm32_iwdg.h>
 #if STM32MP13
 #include <drivers/st/stm32_mce.h>
@@ -353,6 +354,12 @@ skip_console_init:
 		panic();
 	}
 
+#if (PLAT_NB_GPIO_REGUS > 0)
+	if (gpio_regulator_register() != 0) {
+		panic();
+	}
+#endif
+
 	if (dt_pmic_status() > 0) {
 		initialize_pmic();
 		if (!stm32mp1_is_wakeup_from_standby() &&
@@ -395,7 +402,15 @@ skip_console_init:
 
 	fconf_populate("TB_FW", STM32MP_DTB_BASE);
 
-	stm32mp_io_setup();
+	if (stm32mp_skip_boot_device_after_standby()) {
+		bl_mem_params_node_t *bl_mem_params = get_bl_mem_params_node(FW_CONFIG_ID);
+
+		assert(bl_mem_params != NULL);
+
+		bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
+	} else {
+		stm32mp_io_setup();
+	}
 }
 
 #if STM32MP13
@@ -407,6 +422,7 @@ static void prepare_encryption(void)
 
 	if (stm32mp1_is_wakeup_from_standby()) {
 		stm32mp1_pm_get_mce_mkey_from_context(mkey);
+		stm32_mce_reload_configuration();
 	} else {
 		/* Generate MCE master key from RNG */
 		if (stm32_rng_read(mkey, MCE_KEY_SIZE_IN_BYTES) != 0) {
@@ -457,6 +473,10 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 			prepare_encryption();
 		}
 #endif
+		if (stm32mp_skip_boot_device_after_standby()) {
+			return 0;
+		}
+
 		/* Set global DTB info for fixed fw_config information */
 		set_config_info(STM32MP_FW_CONFIG_BASE, STM32MP_FW_CONFIG_MAX_SIZE, FW_CONFIG_ID);
 		fconf_populate("FW_CONFIG", STM32MP_FW_CONFIG_BASE);
@@ -500,9 +520,12 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 
 				/* Init base and size for pager if exist */
 				paged_mem_params = get_bl_mem_params_node(BL32_EXTRA2_IMAGE_ID);
-				paged_mem_params->image_info.image_base = STM32MP_DDR_BASE +
-					(dt_get_ddr_size() - STM32MP_DDR_S_SIZE);
-				paged_mem_params->image_info.image_max_size = STM32MP_DDR_S_SIZE;
+				if (paged_mem_params != NULL) {
+					paged_mem_params->image_info.image_base = STM32MP_DDR_BASE +
+						(dt_get_ddr_size() - STM32MP_DDR_S_SIZE);
+					paged_mem_params->image_info.image_max_size =
+						STM32MP_DDR_S_SIZE;
+				}
 				break;
 
 			case BL33_IMAGE_ID:
@@ -528,39 +551,46 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 		break;
 
 	case BL32_IMAGE_ID:
-#if STM32MP13
-		if (wakeup_ddr_sr) {
+		if (wakeup_ddr_sr && stm32mp_skip_boot_device_after_standby()) {
 			bl_mem_params->ep_info.pc = stm32_pm_get_optee_ep();
+			if (stm32mp1_addr_inside_backupsram(bl_mem_params->ep_info.pc)) {
+				clk_enable(BKPSRAM);
+			}
 			break;
 		}
-#endif
+
 		if (optee_header_is_valid(bl_mem_params->image_info.image_base)) {
+			image_info_t *paged_image_info = NULL;
+
 			/* BL32 is OP-TEE header */
 			bl_mem_params->ep_info.pc = bl_mem_params->image_info.image_base;
-			if (wakeup_ddr_sr) {
-				bl_mem_params->ep_info.pc = stm32_pm_get_optee_ep();
-				if (stm32mp1_addr_inside_backupsram(bl_mem_params->ep_info.pc)) {
-					clk_enable(BKPSRAM);
-				}
 
-				break;
-			}
 			pager_mem_params = get_bl_mem_params_node(BL32_EXTRA1_IMAGE_ID);
+			assert(pager_mem_params != NULL);
+
 			paged_mem_params = get_bl_mem_params_node(BL32_EXTRA2_IMAGE_ID);
-			assert((pager_mem_params != NULL) && (paged_mem_params != NULL));
+			if (paged_mem_params != NULL) {
+				paged_image_info = &paged_mem_params->image_info;
+			}
 
 			err = parse_optee_header(&bl_mem_params->ep_info,
 						 &pager_mem_params->image_info,
-						 &paged_mem_params->image_info);
-			if (err) {
+						 paged_image_info);
+			if (err != 0) {
 				ERROR("OPTEE header parse error.\n");
 				panic();
 			}
 
 			/* Set optee boot info from parsed header data */
-			bl_mem_params->ep_info.args.arg0 = paged_mem_params->image_info.image_base;
-			bl_mem_params->ep_info.args.arg1 = 0; /* Unused */
-			bl_mem_params->ep_info.args.arg2 = 0; /* No DT supported */
+			if (paged_mem_params != NULL) {
+				bl_mem_params->ep_info.args.arg0 =
+					paged_mem_params->image_info.image_base;
+			} else {
+				bl_mem_params->ep_info.args.arg0 = 0U;
+			}
+
+			bl_mem_params->ep_info.args.arg1 = 0U; /* Unused */
+			bl_mem_params->ep_info.args.arg2 = 0U; /* No DT supported */
 		} else {
 			bl_mem_params->ep_info.pc = bl_mem_params->image_info.image_base;
 			tos_fw_mem_params = get_bl_mem_params_node(TOS_FW_CONFIG_ID);
@@ -579,7 +609,9 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 		assert(bl32_mem_params != NULL);
 		bl32_mem_params->ep_info.lr_svc = bl_mem_params->ep_info.pc;
 #if PSA_FWU_SUPPORT
-		stm32mp1_fwu_set_boot_idx();
+		if (plat_fwu_is_enabled()) {
+			stm32mp1_fwu_set_boot_idx();
+		}
 #endif /* PSA_FWU_SUPPORT */
 		break;
 

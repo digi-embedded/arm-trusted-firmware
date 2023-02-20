@@ -10,11 +10,13 @@ BL2_AT_EL3		:=	1
 USE_COHERENT_MEM	:=	0
 
 STM32MP_EARLY_CONSOLE	?=	0
+STM32MP_RECONFIGURE_CONSOLE ?=	0
 STM32MP_UART_BAUDRATE	?=	115200
 
 # Add specific ST version
-ST_VERSION 		:=	r1.0
-VERSION_STRING		:=	v${VERSION_MAJOR}.${VERSION_MINOR}-${PLAT}-${ST_VERSION}(${BUILD_TYPE}):${BUILD_STRING}
+ST_VERSION 		:=	r2.0
+ST_GIT_SHA1		:=	$(shell git rev-parse --short=8 HEAD 2>/dev/null)
+VERSION_STRING		:=	v${VERSION_MAJOR}.${VERSION_MINOR}-${PLAT}-${ST_VERSION}(${BUILD_TYPE}):${BUILD_STRING}(${ST_GIT_SHA1})
 
 TRUSTED_BOARD_BOOT	?=	0
 STM32MP_USE_EXTERNAL_HEAP ?=	0
@@ -187,11 +189,11 @@ endif
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_FW_CONFIG},--fw-config))
 # Add the HW_CONFIG to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_HW_CONFIG},--hw-config))
-ifeq (${GENERATE_COT},1)
-$(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/tb_fw.crt,--tb-fw-cert))
+ifeq ($(GENERATE_COT),1)
+STM32MP_CFG_CERT	:=	$(BUILD_PLAT)/stm32mp_cfg_cert.crt
+# Add the STM32MP_CFG_CERT to FIP and specify the same to certtool
+$(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_CFG_CERT},--stm32mp-cfg-cert))
 endif
-$(eval $(call CERT_ADD_CMD_OPT,${BUILD_PLAT}/bl2.bin,--tb-fw))
-CRT_DEPS+=${BUILD_PLAT}/bl2.bin
 ifeq ($(AARCH32_SP),sp_min)
 STM32MP_TOS_FW_CONFIG	:= $(addprefix ${BUILD_PLAT}/fdts/, $(patsubst %.dtb,%-bl32.dtb,$(DTB_FILE_NAME)))
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_TOS_FW_CONFIG},--tos-fw-config))
@@ -212,6 +214,7 @@ $(eval $(call assert_booleans,\
 		BL33_HYP \
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
+		PLAT_TBBR_IMG_DEF \
 		PLAT_XLAT_TABLES_DYNAMIC \
 		STM32MP_DDR_32BIT_INTERFACE \
 		STM32MP_DDR_DUAL_AXI_PORT \
@@ -219,6 +222,7 @@ $(eval $(call assert_booleans,\
 		STM32MP_EMMC \
 		STM32MP_EMMC_BOOT \
 		STM32MP_RAW_NAND \
+		STM32MP_RECONFIGURE_CONSOLE \
 		STM32MP_SDMMC \
 		STM32MP_SPI_NAND \
 		STM32MP_SPI_NOR \
@@ -245,6 +249,7 @@ $(eval $(call add_defines,\
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
 		PLAT_PARTITION_MAX_ENTRIES \
+		PLAT_TBBR_IMG_DEF \
 		PLAT_XLAT_TABLES_DYNAMIC \
 		STM32_TF_A_COPIES \
 		STM32_TF_VERSION \
@@ -254,6 +259,7 @@ $(eval $(call add_defines,\
 		STM32MP_EMMC \
 		STM32MP_EMMC_BOOT \
 		STM32MP_RAW_NAND \
+		STM32MP_RECONFIGURE_CONSOLE \
 		STM32MP_SDMMC \
 		STM32MP_SPI_NAND \
 		STM32MP_SPI_NOR \
@@ -303,6 +309,7 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/arm/tzc/tzc400.c				\
 				drivers/st/pmic/stm32mp_pmic.c				\
 				drivers/st/pmic/stpmic1.c				\
 				drivers/st/regulator/regulator_fixed.c			\
+				drivers/st/regulator/regulator_gpio.c			\
 				drivers/st/reset/stm32mp1_reset.c			\
 				plat/st/common/stm32mp_dt.c				\
 				plat/st/common/stm32mp_shres_helpers.c			\
@@ -359,14 +366,22 @@ NTFW_NVCTR_VAL		:=	0
 KEY_SIZE		:=
 KEY_ALG			:=	ecdsa
 HASH_ALG		:=	sha256
+
+ifeq (${SAVE_KEYS},1)
+TRUSTED_WORLD_KEY	?=	${BUILD_PLAT}/trusted.pem
+NON_TRUSTED_WORLD_KEY	?=	${BUILD_PLAT}/non-trusted.pem
+BL32_KEY		?=	${BUILD_PLAT}/trusted_os.pem
+BL33_KEY		?=	${BUILD_PLAT}/non-trusted_os.pem
+endif
+
 endif
 TF_MBEDTLS_KEY_ALG 	:=	ecdsa
 MBEDTLS_CONFIG_FILE	?=	"<stm32mp15_mbedtls_config.h>"
 
 include drivers/auth/mbedtls/mbedtls_x509.mk
 
-
-AUTH_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_common.c			\
+COT_DESC_IN_DTB		:=	1
+AUTH_SOURCES		+=	lib/fconf/fconf_cot_getter.c				\
 				lib/fconf/fconf_tbbr_getter.c				\
 				plat/st/common/stm32mp_crypto_lib.c
 
@@ -374,8 +389,6 @@ ifeq ($(STM32MP13),1)
 AUTH_SOURCES		+=	drivers/st/crypto/stm32_pka.c
 AUTH_SOURCES		+=	drivers/st/crypto/stm32_saes.c
 endif
-
-BL2_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_bl2.c
 
 BL2_SOURCES		+=	$(AUTH_SOURCES)						\
 				plat/st/common/stm32mp_trusted_boot.c
