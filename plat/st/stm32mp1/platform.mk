@@ -100,6 +100,9 @@ STM32_HASH_VER		:=	2
 STM32_RNG_VER		:=	2
 endif
 
+# Disable serial console
+CONFIG_CONSOLE_DISABLE	?=	0
+
 # Download load address for serial boot devices
 DWL_BUFFER_BASE 	?=	0xC7000000
 
@@ -161,6 +164,7 @@ endif
 $(eval $(call assert_booleans,\
 	$(sort \
 		BL33_HYP \
+		CONFIG_CONSOLE_DISABLE \
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
 		STM32MP_CRYPTO_ROM_LIB \
@@ -185,6 +189,7 @@ $(eval $(call assert_numerics,\
 $(eval $(call add_defines,\
 	$(sort \
 		BL33_HYP \
+		CONFIG_CONSOLE_DISABLE \
 		DWL_BUFFER_BASE \
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
