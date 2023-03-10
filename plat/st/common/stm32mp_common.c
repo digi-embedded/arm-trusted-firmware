@@ -217,6 +217,10 @@ int stm32mp_uart_console_setup(void)
 	uint32_t boot_itf __unused;
 	uint32_t boot_instance __unused;
 
+	/* Disable the the serial console setup */
+#if CONFIG_CONSOLE_DISABLE
+	return -ENODEV;
+#endif
 	result = dt_get_stdout_uart_info(&dt_uart_info);
 
 	if ((result <= 0) ||
