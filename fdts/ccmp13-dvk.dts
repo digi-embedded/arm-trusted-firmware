@@ -93,8 +93,8 @@
 			buck2-supply = <&vin>;
 			buck3-supply = <&vin>;
 			buck4-supply = <&vin>;
-			ldo1-supply = <&vddcore>;
-			ldo2-supply = <&vddcore>;
+			ldo1-supply = <&vin>;
+			ldo2-supply = <&vin>;
 			/*
 			 * LDO3 is wrongly fed from vdd_ddr.
 			 * It must not be used until fixed in the next spin
@@ -102,10 +102,10 @@
 			 */
 			//ldo3-supply = <&vdd_ddr>;
 			ldo4-supply = <&vin>;
-			ldo5-supply = <&vddcore>;
-			ldo6-supply = <&vddcore>;
+			ldo5-supply = <&vin>;
+			ldo6-supply = <&vin>;
 			vref_ddr-supply = <&vin>;
-			bst_out = <&vin>;
+			boost-supply = <&vin>;
 			pwr_sw1-supply = <&bst_out>;
 			pwr_sw2-supply = <&bst_out>;
 
