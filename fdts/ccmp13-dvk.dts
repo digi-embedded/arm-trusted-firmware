@@ -41,14 +41,6 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 	};
-
-	v3v3_ao: v3v3_ao {
-		compatible = "regulator-fixed";
-		regulator-name = "v3v3_ao";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
 };
 
 &bsec {
@@ -93,7 +85,6 @@
 	pmic: stpmic@33 {
 		compatible = "st,stpmic1";
 		reg = <0x33>;
-
 		status = "okay";
 
 		regulators {
@@ -103,12 +94,20 @@
 			buck3-supply = <&vin>;
 			buck4-supply = <&vin>;
 			ldo1-supply = <&vin>;
+			ldo2-supply = <&vin>;
+			/*
+			 * LDO3 is wrongly fed from vdd_ddr.
+			 * It must not be used until fixed in the next spin
+			 * of the SOM.
+			 */
+			//ldo3-supply = <&vdd_ddr>;
 			ldo4-supply = <&vin>;
 			ldo5-supply = <&vin>;
 			ldo6-supply = <&vin>;
 			vref_ddr-supply = <&vin>;
+			boost-supply = <&vin>;
 			pwr_sw1-supply = <&bst_out>;
-			pwr_sw2-supply = <&v3v3_ao>;
+			pwr_sw2-supply = <&bst_out>;
 
 			vddcpu: buck1 {
 				regulator-name = "vddcpu";
@@ -149,6 +148,25 @@
 				regulator-max-microvolt = <3300000>;
 			};
 
+			ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			/*
+			 * LDO3 is wrongly fed from vdd_ddr.
+			 * It must not be used until fixed in the next spin
+			 * of the SOM.
+			 */
+			/*
+			ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+			*/
+
 			vdd_usb: ldo4 {
 				regulator-name = "vdd_usb";
 				regulator-min-microvolt = <3300000>;
@@ -162,10 +180,10 @@
 				regulator-boot-on;
 			};
 
-			v1v8_periph: ldo6 {
-				regulator-name = "v1v8_periph";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
+			ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			vref_ddr: vref_ddr {
@@ -177,9 +195,17 @@
 				regulator-name = "bst_out";
 			};
 
-			v3v3_sw: pwr_sw2 {
-				regulator-name = "v3v3_sw";
+			vbus_otg: pwr_sw1 {
+				regulator-name = "vbus_otg";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+			};
+
+			vbus_sw: pwr_sw2 {
+				regulator-name = "vbus_sw";
 				regulator-active-discharge = <1>;
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
 				regulator-always-on;
 			};
 		};

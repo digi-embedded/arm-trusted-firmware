@@ -179,8 +179,8 @@
 				regulator-max-microvolt = <2900000>;
 			};
 
-			v2v8: ldo2 {
-				regulator-name = "v2v8";
+			ldo2: ldo2 {
+				regulator-name = "ldo2";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 			};
@@ -205,8 +205,8 @@
 				regulator-boot-on;
 			};
 
-			v1v8: ldo6 {
-				regulator-name = "v1v8";
+			ldo6: ldo6 {
+				regulator-name = "ldo6";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-enable-ramp-delay = <300000>;
@@ -409,7 +409,7 @@
 };
 
 /* Low-power states of regulators */
-&v1v8 {
+&ldo6 {
 	standby-ddr-sr {
 		regulator-off-in-suspend;
 	};
@@ -418,7 +418,7 @@
 	};
 };
 
-&v2v8 {
+&ldo2 {
 	standby-ddr-sr {
 		regulator-off-in-suspend;
 	};
