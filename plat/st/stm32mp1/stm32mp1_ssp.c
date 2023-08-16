@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2017-2023, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -999,6 +999,9 @@ void bl2_el3_plat_arch_setup(void)
 	if (dt_pmic_status() > 0) {
 		initialize_pmic();
 	}
+
+	stm32_save_boot_interface(boot_context->boot_interface_selected,
+				  boot_context->boot_interface_instance);
 
 #if DEBUG
 	if (stm32mp_uart_console_setup() != 0) {

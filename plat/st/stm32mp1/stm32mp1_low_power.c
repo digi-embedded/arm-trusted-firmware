@@ -232,13 +232,6 @@ static void enter_cstop(uint32_t mode, uint32_t nsec_addr)
 				;
 			}
 		}
-
-		/* Keep backup RAM content in standby */
-		mmio_setbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN);
-		while ((mmio_read_32(pwr_base + PWR_CR2) &
-			PWR_CR2_BRRDY) == 0U) {
-			;
-		}
 	}
 
 	clk_disable(RTCAPB);
@@ -281,8 +274,8 @@ void stm32_exit_cstop(void)
 	dsb();
 	isb();
 
-	/* Disable retention and backup RAM content after stop */
-	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN | PWR_CR2_RREN);
+	/* Disable retention RAM content after stop */
+	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_RREN);
 
 	/* Update STGEN counter with low power mode duration */
 	stm32_rtc_get_calendar(&current_calendar);
@@ -431,11 +424,18 @@ void stm32_init_low_power(void)
 	mmio_setbits_32(rcc_base + RCC_MP_SREQCLRR,
 			RCC_MP_SREQSETR_STPREQ_P0 | RCC_MP_SREQSETR_STPREQ_P1);
 
-	/* Disable retention and backup RAM content after standby */
-	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN | PWR_CR2_RREN);
+	/* Disable retention RAM content after standby */
+	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_RREN);
 
 	/* Wait 5 HSI periods before re-enabling PLLs after STOP modes */
 	mmio_clrsetbits_32(rcc_base + RCC_PWRLPDLYCR,
 			   RCC_PWRLPDLYCR_PWRLP_DLY_MASK,
 			   PWRLP_TEMPO_5_HSI);
+
+	/* Keep backup RAM content in standby and VBAT mode */
+	mmio_setbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN);
+	while ((mmio_read_32(pwr_base + PWR_CR2) &
+		PWR_CR2_BRRDY) == 0U) {
+		;
+	}
 }

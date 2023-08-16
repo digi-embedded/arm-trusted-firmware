@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -46,6 +46,8 @@ void stm32mp1_deconfigure_uart_pins(void);
 void stm32mp1_init_scmi_server(void);
 void stm32mp1_pm_save_scmi_state(uint8_t *state, size_t size);
 void stm32mp1_pm_restore_scmi_state(uint8_t *state, size_t size);
+
+bool stm32mp_bkpram_get_access(void);
 
 #if defined(IMAGE_BL32) && DEBUG
 void stm32mp_dump_core_registers(bool fcore);

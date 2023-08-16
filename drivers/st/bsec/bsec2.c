@@ -583,23 +583,6 @@ uint32_t bsec_permanent_lock_otp(uint32_t otp)
 }
 
 /*
- * bsec_write_debug_conf: write value in debug feature.
- *	to enable/disable debug service.
- * val: value to write.
- * return value: none.
- */
-void bsec_write_debug_conf(uint32_t val)
-{
-	if (is_otp_invalid_mode()) {
-		return;
-	}
-
-	bsec_lock();
-	mmio_write_32(bsec_base + BSEC_DEN_OFF, val & BSEC_DEN_ALL_MSK);
-	bsec_unlock();
-}
-
-/*
  * bsec_read_debug_conf: return debug configuration register value.
  */
 uint32_t bsec_read_debug_conf(void)
