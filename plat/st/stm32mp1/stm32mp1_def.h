@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -380,9 +380,11 @@ enum ddr_type {
 #if STM32MP13
 #define NAND_OTP			"cfg9_otp"
 #define NAND2_OTP			"cfg10_otp"
+#define SSP_OTP				"cfg9_otp"
 #endif
 #if STM32MP15
 #define NAND_OTP			"nand_otp"
+#define SSP_OTP				"ssp_otp"
 #endif
 #define MONOTONIC_OTP			"monotonic_otp"
 #define UID_OTP				"uid_otp"
@@ -390,7 +392,6 @@ enum ddr_type {
 #define ENCKEY_OTP			"enckey_otp"
 #define BOARD_ID_OTP			"board_id"
 #define CFG2_OTP			"cfg2_otp"
-#define SSP_OTP				"ssp_otp"
 #define CHIP_CERTIFICATE_OTP		"chip_otp"
 #define RMA_OTP				"rma_otp"
 
@@ -521,7 +522,13 @@ enum ddr_type {
 #define TAMP_BKP_REGISTER_BASE		(TAMP_BASE + U(0x100))
 #define TAMP_BKP_SEC_NUMBER		U(10)
 #define TAMP_BKP_S_W_NS_R_NUMBER	U(5)
+#define TAMP_CR2			U(0x4)
+#define TAMP_CR2_MASK_NOER		GENMASK_32(7, 0)
+#define TAMP_CR3			U(0x8)
+#define TAMP_CR3_MASK_NOER		GENMASK_32(12, 0)
+#define TAMP_SR				U(0x30)
 #define TAMP_COUNTR			U(0x40)
+#define TAMP_ERCFGR			U(0x54)
 
 #if !(defined(__LINKER__) || defined(__ASSEMBLER__))
 static inline uintptr_t tamp_bkpr(uint32_t idx)

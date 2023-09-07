@@ -94,7 +94,6 @@
 #define BSEC_SPIDEN			BIT(5)
 #define BSEC_SPINDEN			BIT(6)
 #define BSEC_DBGSWGEN			BIT(10)
-#define BSEC_DEN_ALL_MSK		GENMASK(10, 0)
 
 /* BSEC_FENABLE Register */
 #define BSEC_FEN_ALL_MSK		GENMASK(14, 0)

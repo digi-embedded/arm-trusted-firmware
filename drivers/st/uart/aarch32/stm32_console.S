@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -238,14 +238,19 @@ func console_stm32_core_flush
 	cmp	r0, #0
 	ASM_ASSERT(ne)
 #endif /* ENABLE_ASSERTIONS */
+	/* Skip flush if UART is not enabled */
+	ldr	r1, [r0, #USART_CR1]
+	tst	r1, #USART_CR1_UE
+	beq	1f
 	/* Check Transmit Data Register Empty */
 	mov	r2, #USART_TIMEOUT
 txe_loop_3:
 	subs	r2, r2, #1
-	beq	plat_panic_handler
+	beq	1f
 	ldr	r1, [r0, #USART_ISR]
 	tst	r1, #USART_ISR_TXE
 	beq	txe_loop_3
+1:
 	bx	lr
 endfunc console_stm32_core_flush
 

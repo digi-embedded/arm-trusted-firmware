@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2021, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2019-2023, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -60,13 +60,6 @@ func stm32_pwr_down_wfi_wrapper
 
 	# Set sp to BL2 STACK (as BL2 is not using it anymore)
 	ldr	sp, =__STACKS_END__
-
-	# Disable MMU as TLB are still stored in DDR,
-	# and in few instructions DDR won't be readable
-	bl	disable_mmu_secure
-
-	# dsb is done in disable mmu
-	# isb is done in disable mmu
 
 	mov	r0, r2
 	mov	r1, r3
