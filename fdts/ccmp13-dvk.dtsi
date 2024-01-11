@@ -2,7 +2,7 @@
 /*
  * Copyright (C) STMicroelectronics 2022 - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
- * Copyright (C) 2022, Digi International Inc - All Rights Reserved
+ * Copyright (C) 2022-2024 Digi International Inc - All Rights Reserved
  */
 
 /dts-v1/;
@@ -10,8 +10,6 @@
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
-#include "ccmp1-ddr3l-1x2Gb-1066-binG.dtsi"
-#include "stm32mp13-ddr.dtsi"		/* DDR */
 #include "stm32mp13-pinctrl.dtsi"
 
 / {
@@ -27,11 +25,6 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-	};
-
-	memory@c0000000 {
-		device_type = "memory";
-		reg = <0xc0000000 0x10000000>; /* 256 MiB */
 	};
 
 	vin: vin {

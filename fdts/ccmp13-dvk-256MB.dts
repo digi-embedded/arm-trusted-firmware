@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2024, Digi International Inc - All Rights Reserved
+ */
+/dts-v1/;
+
+/* Digi ConnectCore CCMP13 DVK */
+#include "ccmp13-dvk.dtsi"
+/* DDR Configuration */
+#include "ccmp1-ddr3l-1x2Gb-1066-binG.dtsi"
+#include "stm32mp13-ddr.dtsi"		/* DDR */
+
+/ {
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0xc0000000 0x10000000>; /* 256 MiB */
+	};
+};
+
