@@ -9,7 +9,7 @@
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
 #include "stm32mp257.dtsi"
 #include "stm32mp25xf.dtsi"
-#include "stm32mp25-ddr4-2x8Gbits-2x16bits-1200MHz.dtsi"
+#include "stm32mp25-ddr4-1x8Gbits-1x16bits-1200MHz.dtsi"
 #include "stm32mp25-pinctrl.dtsi"
 #include "stm32mp25xxai-pinctrl.dtsi"
 
@@ -27,7 +27,7 @@
 
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x1 0x00000000>;
+		reg = <0x0 0x80000000 0x0 0x40000000>;
 	};
 
 	shadow-prov {
