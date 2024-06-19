@@ -70,7 +70,7 @@
  */
 #define PLATFORM_MTD_MAX_PART_SIZE		U(0x00400000)
 
-#define FIP_IMAGE_NAME				"fip"
+#define FIP_IMAGE_NAME				"fip-a"
 #define METADATA_PART_1				"metadata1"
 #define METADATA_PART_2				"metadata2"
 
