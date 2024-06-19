@@ -30,6 +30,23 @@
 		reg = <0x0 0x80000000 0x0 0x40000000>;
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3v3_board: regulator-board@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "3v3_board";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpioa 12 0>; /* 3V3_BOARD_EN */
+			enable-active-high;
+			status = "okay";
+		};
+	};
+
 	shadow-prov {
 		compatible = "st,provisioning";
 
@@ -155,18 +172,20 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
 			};
-			vdd_sdcard: ldo7 {
-				regulator-name = "vdd_sdcard";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
+			ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+			};
+			ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 			vddio_sdcard: ldo8 {
 				regulator-name = "vddio_sdcard";
-				st,regulator-bypass-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 			};
 			vref_ddr: refddr {
 				regulator-name = "vref_ddr";
@@ -304,8 +323,8 @@
 	pinctrl-0 = <&sdmmc1_b4_pins_a>;
 	st,neg-edge;
 	bus-width = <4>;
-	vmmc-supply = <&vdd_sdcard>;
-	vqmmc-supply = <&vddio1>;
+	vmmc-supply = <&reg_3v3_board>; /* card's VDD pin */
+	vqmmc-supply = <&vddio1>; /* LDO8 - voltage used to pull up signal lines */
 	status = "okay";
 };
 
