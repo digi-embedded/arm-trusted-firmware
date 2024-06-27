@@ -317,6 +317,8 @@
 		compatible = "st,stm32mp1-pll";
 		reg = <1>;
 		cfg = <2 65 1 0 0 PQR(1,1,1)>;
+		/* Enable spread spectrum (25kHz, 0.5% peak)*/
+		csg = <80 27 SSCG_MODE_CENTER_SPREAD>;
 		frac = <0x1400>;
 	};
 
