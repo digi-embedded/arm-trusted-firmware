@@ -191,10 +191,10 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 			};
-			vddio_sdcard: ldo8 {
-				regulator-name = "vddio_sdcard";
+			ldo8_1v8_rf: ldo8 {
+				regulator-name = "ldo8_1v8_rf";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-max-microvolt = <1800000>;
 			};
 			vref_ddr: refddr {
 				regulator-name = "vref_ddr";
@@ -210,7 +210,7 @@
 
 &pwr {
 	vddio1: vddio1 {
-		vddio1-supply = <&vddio_sdcard>;
+		vddio1-supply = <&ldo8_1v8_rf>;
 	};
 	vddio2: vddio2 {
 		vddio2-supply = <&v1v8>;
@@ -304,7 +304,7 @@
 	status = "okay";
 };
 
-/* Micro SD */
+/* Wireless */
 &sdmmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_b4_pins_a>;
@@ -312,7 +312,7 @@
 	bus-width = <4>;
 	vmmc-supply = <&reg_3v3_board>; /* card's VDD pin */
 	vqmmc-supply = <&vddio1>; /* LDO8 - voltage used to pull up signal lines */
-	status = "okay";
+	status = "disabled";
 };
 
 /* eMMC */
