@@ -201,6 +201,7 @@ endif
 PLAT_BL_COMMON_SOURCES	+=	drivers/st/iwdg/stm32_iwdg.c				\
 				drivers/st/reset/stm32mp2_reset.c			\
 				plat/st/stm32mp2/${ARCH}/stm32mp2_helper.S		\
+				plat/st/stm32mp2/stm32mp2_context.c			\
 				plat/st/stm32mp2/stm32mp2_syscfg.c			\
 				plat/st/stm32mp2/stm32mp2_pwr.c
 
@@ -210,10 +211,6 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/st/clk/clk-stm32-core.c				\
 				drivers/st/crypto/stm32_saes.c
 
 PLAT_BL_COMMON_SOURCES  +=	drivers/st/nvmem/stm32mp_tamp_nvram_mp2.c
-
-ifeq ($(filter 1,${STM32MP_UART_PROGRAMMER} ${STM32MP_USB_PROGRAMMER}),)
-PLAT_BL_COMMON_SOURCES  +=	plat/st/stm32mp2/stm32mp2_context.c
-endif
 
 BL2_SOURCES		+=	plat/st/stm32mp2/plat_bl2_mem_params_desc.c
 
@@ -293,11 +290,8 @@ BL2_SOURCES		+=	plat/st/stm32mp2/plat_image_load.c
 BL31_SOURCES		+=	${FDT_WRAPPERS_SOURCES}
 
 BL31_SOURCES		+=	plat/st/stm32mp2/bl31_plat_setup.c			\
+				plat/st/stm32mp2/stm32mp2_pm.c				\
 				plat/st/stm32mp2/stm32mp2_topology.c
-
-ifeq ($(filter 1,${STM32MP_UART_PROGRAMMER} ${STM32MP_USB_PROGRAMMER}),)
-BL31_SOURCES		+=	plat/st/stm32mp2/stm32mp2_pm.c
-endif
 
 BL31_SOURCES		+=	drivers/st/ddr/stm32mp2_ddr_helpers.c
 
