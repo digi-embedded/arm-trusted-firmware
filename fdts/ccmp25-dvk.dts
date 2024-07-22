@@ -58,8 +58,8 @@
 };
 
 &bsec {
-	board_id: board_id@3d8 {
-		reg = <0x3d8 0x4>;
+	hwid: hwid@5c {
+		reg = <0x5c 0xc>;
 	};
 };
 
