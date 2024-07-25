@@ -432,8 +432,6 @@ void bl2_el3_plat_arch_setup(void)
 		NOTICE("Model: %s\n", board_model);
 	}
 
-	stm32mp_print_boardinfo();
-
 	print_reset_reason();
 
 #if TRUSTED_BOARD_BOOT && DYN_DISABLE_AUTH
