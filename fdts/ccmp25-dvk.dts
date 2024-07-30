@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
-#include "stm32mp257.dtsi"
+#include "stm32mp255.dtsi"
 #include "stm32mp25xf.dtsi"
 #include "stm32mp25-ddr4-1x8Gbits-1x16bits-1200MHz.dtsi"
 #include "stm32mp25-pinctrl.dtsi"
@@ -15,7 +15,7 @@
 
 / {
 	model = "Digi International ConnectCore MP25 Development Kit";
-	compatible = "digi,ccmp25-dvk", "digi,ccmp25", "st,stm32mp257";
+	compatible = "digi,ccmp25-dvk", "digi,ccmp25", "st,stm32mp255";
 
 	aliases {
 		serial0 = &usart2;
