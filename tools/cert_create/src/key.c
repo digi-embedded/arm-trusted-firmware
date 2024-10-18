@@ -16,6 +16,7 @@
 #include <openssl/engine.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/ssl.h>
 
 #include "cert.h"
 #include "cmd_opt.h"
@@ -198,6 +199,11 @@ static EVP_PKEY *key_load_pkcs11(const char *uri)
 	char *key_pass;
 	EVP_PKEY *pkey;
 	ENGINE *e;
+
+	if (!OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL)) {
+		fprintf(stderr, "Failed to init SSL\n");
+		return NULL;
+	}
 
 	ENGINE_load_builtin_engines();
 	e = ENGINE_by_id("pkcs11");
