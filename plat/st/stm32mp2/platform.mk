@@ -47,7 +47,7 @@ endif
 ifneq ($(findstring stm32mp23,$(DTB_FILE_NAME)),)
 STM32MP23			:=	1
 endif
-ifneq ($(findstring stm32mp25,$(DTB_FILE_NAME)),)
+ifneq ($(findstring mp25,$(DTB_FILE_NAME)),)
 STM32MP25			:=	1
 endif
 ifneq ($(filter 1,$(STM32MP21) $(STM32MP23) $(STM32MP25)), 1)
