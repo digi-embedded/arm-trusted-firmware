@@ -44,7 +44,7 @@ STM32MP_M33_TDCID		?=	0
 ifneq ($(findstring stm32mp21,$(DTB_FILE_NAME)),)
 STM32MP21			:=	1
 endif
-ifneq ($(findstring stm32mp23,$(DTB_FILE_NAME)),)
+ifneq ($(findstring mp23,$(DTB_FILE_NAME)),)
 STM32MP23			:=	1
 endif
 ifneq ($(findstring mp25,$(DTB_FILE_NAME)),)
