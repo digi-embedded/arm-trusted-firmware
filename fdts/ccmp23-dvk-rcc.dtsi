@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /*
- * Copyright (C) 2024, Digi International Inc - All Rights Reserved
+ * Copyright (C) 2025, Digi International Inc - All Rights Reserved
  */
 
 /*
- * STM32MP25 Clock tree device tree configuration
+ * STM32MP23 Clock tree device tree configuration
  */
 
 &clk_hse {
