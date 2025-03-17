@@ -83,6 +83,9 @@ uintptr_t get_uart_address(uint32_t instance_nb);
 /* Setup the UART console */
 int stm32mp_uart_console_setup(void);
 
+/* Check if uart used as console is suspended */
+bool stm32mp_uart_console_is_running(void);
+
 #if STM32MP_EARLY_CONSOLE
 #define EARLY_ERROR(...)	ERROR(__VA_ARGS__)
 #define EARLY_NOTICE(...)	NOTICE(__VA_ARGS__)

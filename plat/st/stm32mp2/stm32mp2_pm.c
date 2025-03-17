@@ -89,7 +89,6 @@ uintptr_t stm32_sec_entrypoint;
 static u_register_t saved_scr_el3;
 
 static uint32_t lpstop1_pwrlpdly;
-static uint32_t stop2_pwrlpdly;
 
 #if !STM32MP21
 /* bitfield to indicate the modified AMEN bit for LP-SRAM1/2/3 */
@@ -218,29 +217,40 @@ static void stm32mp_state_set(unsigned int core_id, unsigned int state_id, bool 
 static void stm32mp_ca35_lpi_isolate(void)
 {
 	/* Use write clear registers to clear bits */
-	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1), TS_CSYSREQ);
 	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WC1), STGEN_CSYSREQ);
 
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1)) & TS_CSYSACK) != 0U) {
+	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WC1))
+		& STGEN_CSYSACK) != 0U) {
 		;
 	}
 
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WC1)) & STGEN_CSYSACK) != 0U) {
-		;
+	if (clk_is_enabled(CK_SYSDBG)) {
+		mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1), TS_CSYSREQ);
+
+		while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1))
+			& TS_CSYSACK) != 0U) {
+			;
+		}
 	}
 }
 
 static void stm32mp_ca35_lpi_restore(void)
 {
 	/* Use write set registers to set bits */
-	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1), TS_CSYSREQ);
 	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WS1), STGEN_CSYSREQ);
 
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1)) & TS_CSYSACK) == 0U) {
+	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WS1))
+		& STGEN_CSYSACK) == 0U) {
 		;
 	}
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WS1)) & STGEN_CSYSACK) == 0U) {
-		;
+
+	if (clk_is_enabled(CK_SYSDBG)) {
+		mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1), TS_CSYSREQ);
+
+		while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1))
+			& TS_CSYSACK) == 0U) {
+			;
+		}
 	}
 }
 
@@ -612,7 +622,6 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 		if (!cpu2_running) {
 			mmio_write_32(pwr_base + PWR_CPU2CR, 0U);
 		}
-		mmio_write_32(rcc_base + RCC_PWRLPDLYCR, stop2_pwrlpdly);
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
@@ -624,7 +633,6 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 		if (!cpu2_running) {
 			mmio_write_32(pwr_base + PWR_CPU2CR, PWR_CPU2CR_LPDS_D2);
 		}
-		mmio_write_32(rcc_base + RCC_PWRLPDLYCR, stop2_pwrlpdly);
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
@@ -638,7 +646,6 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 			mmio_write_32(pwr_base + PWR_CPU2CR,
 				      PWR_CPU2CR_LPDS_D2 | PWR_CPU2CR_LVDS_D2);
 		}
-		mmio_write_32(rcc_base + RCC_PWRLPDLYCR, stop2_pwrlpdly);
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
@@ -697,6 +704,10 @@ static void stm32_pwr_domain_on_finish(const psci_power_state_t *target_state)
 	} else {
 		/* Restore generic timer after reset */
 		stm32mp_stgen_restore_rate();
+#if !STM32MP21
+		/* clear flag after core 1 power on */
+		mmio_setbits_32(rcc_base + RCC_C1HWRSTSCLRR, RCC_C1HWRSTSCLRR_C1P1RSTF);
+#endif /* !STM32MP21 */
 	}
 
 	stm32mp2_disable_rcc_wakeup_irq(rcc_base);
@@ -740,10 +751,10 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
 	case PWRSTATE_LP_STOP2:
 	case PWRSTATE_LPLV_STOP2:
 		VERBOSE("STOP2 exit\n");
-		/* restore PLL1 configuration for CA35 */
-		stm32mp2_pll1_enable();
 		/* Restore STGEN and generic timer with current clock */
 		stm32mp_stgen_config(clk_get_rate(CK_KER_STGEN));
+		/* restore PLL1 configuration for CA35 */
+		stm32mp2_pll1_enable();
 
 		/* Exit DDR self refresh mode after STOP mode */
 		ddr_sr_exit();
@@ -806,6 +817,9 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
 	stm32mp_state_set(STM32MP_PRIMARY_CPU, STATE_DDR, true);
 	/* Unblock the other core in CPU standby loop */
 	sev();
+
+	/* Restart console output if stopped previously */
+	console_switch_state(CONSOLE_FLAG_RUNTIME);
 }
 
 static void __dead2 stm32_pwr_domain_pwr_down_wfi(const psci_power_state_t
@@ -988,6 +1002,14 @@ static int stm32_validate_power_state(unsigned int power_state,
 	unsigned int state_id;
 	unsigned int i;
 
+	/*
+	 * First function called for a cpu suspend command:
+	 * disable traces when uart suspended
+	 */
+	if (!stm32mp_uart_console_is_running()) {
+		console_switch_state(0);
+	}
+
 	assert(req_state != NULL);
 
 	/*
@@ -1037,6 +1059,14 @@ static int stm32_validate_power_state(unsigned int power_state,
 
 static int stm32_validate_ns_entrypoint(uintptr_t entrypoint)
 {
+	/*
+	 * First function called for a system suspend command:
+	 * disable traces when uart suspended
+	 */
+	if (!stm32mp_uart_console_is_running()) {
+		console_switch_state(0);
+	}
+
 	/* The non-secure entry point must be in DDR */
 	if (entrypoint < STM32MP_DDR_BASE) {
 		return PSCI_E_INVALID_ADDRESS;
@@ -1333,8 +1363,6 @@ static void stm32_pm_init(void *fdt)
 	/* Compute RCC PWR LP DLY according to parent clock */
 	lsmcu = mmio_read_32(rcc_base + RCC_LSMCUDIVR) & RCC_LSMCUDIVR_LSMCUDIV;
 	lpstop1_pwrlpdly = PWRLPDLYCR_VAL(param.lpstop1dly, lsmcu);
-	/* Wait 2ms for Stop2 */
-	stop2_pwrlpdly = PWRLPDLYCR_VAL(2000, lsmcu);
 }
 
 /*******************************************************************************
@@ -1384,3 +1412,11 @@ int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 
 	return 0;
 }
+
+/*
+ * This driver disable logs if the uart used as console is not available
+ * in function stm32_validate_power_state() after a cpu suspend command.
+ * But this function is also called by psci_get_stat(), that will never be
+ * called in our context.
+ */
+CASSERT(ENABLE_PSCI_STAT == 0, driver_not_compatible_with_psci_stat);

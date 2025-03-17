@@ -11,9 +11,11 @@ STM32_EXTRA_PARTS		:=	6
 include plat/st/common/common.mk
 
 CRASH_REPORTING			:=	1
-ENABLE_PIE			:=	1
+ENABLE_PIE			:=	0
 PROGRAMMABLE_RESET_ADDRESS	:=	1
+ifeq ($(ENABLE_PIE),1)
 BL2_IN_XIP_MEM			:=	1
+endif
 
 STM32MP_BL33_EL1		?=	1
 ifeq ($(STM32MP_BL33_EL1),1)
