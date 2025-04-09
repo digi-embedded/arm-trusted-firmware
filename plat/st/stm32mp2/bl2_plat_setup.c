@@ -286,7 +286,7 @@ static void check_tamper_event(bool lse_tamper_occured)
 
 static void authentication_check(boot_api_context_t *boot_context)
 {
-#if TRUSTED_BOARD_BOOT && DYN_DISABLE_AUTH && !STM32MP21
+#if TRUSTED_BOARD_BOOT && !STM32MP21
 	bool auth = false;
 
 	if (boot_context->auth_status == BOOT_API_CTX_AUTH_FAILED) {
@@ -314,7 +314,7 @@ static void authentication_check(boot_api_context_t *boot_context)
 end:
 	NOTICE("Bootrom authentication %s\n", auth ? "succeeded" : "failed");
 
-#endif /* TRUSTED_BOARD_BOOT && DYN_DISABLE_AUTH && !STM32MP21 */
+#endif /* TRUSTED_BOARD_BOOT && !STM32MP21 */
 }
 
 
