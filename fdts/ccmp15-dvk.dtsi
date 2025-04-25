@@ -41,6 +41,12 @@
 	};
 };
 
+&ddr {
+	vdd-supply = <&vdd_ddr>;
+	vtt-supply = <&vtt_ddr>;
+	vref-supply = <&vref_ddr>;
+};
+
 &clk_hse {
 	st,digbypass;
 };

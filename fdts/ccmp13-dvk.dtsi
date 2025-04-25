@@ -63,6 +63,11 @@
 	};
 };
 
+&ddr {
+	vdd-supply = <&vdd_ddr>;
+	vref-supply = <&vref_ddr>;
+};
+
 &hash {
 	status = "okay";
 };
