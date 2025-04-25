@@ -317,33 +317,29 @@
 	};
 
 	/* VCO = 417.8 MHz => P = 209, Q = 12.28, R = 11 */
-	pll3:st,pll@2 {
+	pll3: st,pll@2 {
 		compatible = "st,stm32mp1-pll";
 		reg = <2>;
 
-		st,pll = < &pll3_cfg1 >;
+		st,pll = <&pll3_cfg1>;
 
 		pll3_cfg1: pll3_cfg1 {
-			st,pll_vco = < &pll3_vco_417Mhz >;
-			st,pll_div_pqr = < 1 33 36 >;
+			st,pll_vco = <&pll3_vco_417Mhz>;
+			st,pll_div_pqr = <1 33 36>;
 		};
-		/* USER CODE BEGIN pll3 */
-		/* USER CODE END pll3 */
 	};
 
 	/* VCO = 594.0 MHz => P = 99, Q = 74.25, R = 66 */
-	pll4:st,pll@3 {
+	pll4: st,pll@3 {
 		compatible = "st,stm32mp1-pll";
 		reg = <3>;
 
-		st,pll = < &pll4_cfg1 >;
+		st,pll = <&pll4_cfg1>;
 
 		pll4_cfg1: pll4_cfg1 {
-			st,pll_vco = < &pll4_vco_594Mhz >;
-			st,pll_div_pqr = < 5 7 8 >;
+			st,pll_vco = <&pll4_vco_594Mhz>;
+			st,pll_div_pqr = <5 7 8>;
 		};
-		/* USER CODE BEGIN pll4 */
-		/* USER CODE END pll4 */
 	};
 };
 
