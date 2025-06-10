@@ -617,9 +617,6 @@ bool stm32mp1_addr_inside_backupsram(uintptr_t addr)
 
 bool stm32mp_is_wakeup_from_standby(void)
 {
-#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
-	return false;
-#else /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 	uint32_t rstsr = mmio_read_32(stm32mp_rcc_base() + RCC_MP_RSTSCLRR);
 #if STM32MP15
 	uint32_t nsec_address;
@@ -645,14 +642,10 @@ bool stm32mp_is_wakeup_from_standby(void)
 #endif
 
 	return stm32_pm_context_is_valid();
-#endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 }
 
 bool stm32mp_skip_boot_device_after_standby(void)
 {
-#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
-	return false;
-#else /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 	static int skip = -1;
 
 	if (skip == -1) {
@@ -669,7 +662,6 @@ bool stm32mp_skip_boot_device_after_standby(void)
 	}
 
 	return skip == 1;
-#endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 }
 
 #if STM32MP13
