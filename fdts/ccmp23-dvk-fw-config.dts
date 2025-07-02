@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (c) 2021-2023, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2025, Digi International Inc - All Rights Reserved
+ */
+
+#include "ccmp25-dvk-fw-config.dts"

@@ -526,11 +526,6 @@ static void prepare_encryption(void)
 
 	stm32_mce_init();
 
-#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
-	if (stm32_rng_read(mkey, MCE_KEY_SIZE_IN_BYTES) != 0) {
-		panic();
-	}
-#else /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 	if (stm32mp_is_wakeup_from_standby()) {
 		stm32mp1_pm_get_mce_mkey_from_context(mkey);
 		stm32_mce_reload_configuration();
@@ -542,7 +537,6 @@ static void prepare_encryption(void)
 
 		stm32mp1_pm_save_mce_mkey_in_context(mkey);
 	}
-#endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 
 	if (stm32_mce_write_master_key(mkey) != 0) {
 		panic();
@@ -568,11 +562,7 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 	unsigned int i;
 	unsigned int idx;
 	unsigned long long ddr_top __unused;
-#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
-	bool wakeup_ddr_sr = false;
-#else /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 	bool wakeup_ddr_sr = stm32mp1_ddr_is_restored();
-#endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 	const unsigned int image_ids[] = {
 		BL32_IMAGE_ID,
 		BL33_IMAGE_ID,
@@ -670,7 +660,6 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 		break;
 
 	case BL32_IMAGE_ID:
-#if !STM32MP_UART_PROGRAMMER && !STM32MP_USB_PROGRAMMER
 		if (wakeup_ddr_sr && stm32mp_skip_boot_device_after_standby()) {
 			bl_mem_params->ep_info.pc = stm32_pm_get_optee_ep();
 			if (stm32mp1_addr_inside_backupsram(bl_mem_params->ep_info.pc)) {
@@ -678,7 +667,6 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 			}
 			break;
 		}
-#endif /* !STM32MP_UART_PROGRAMMER && !STM32MP_USB_PROGRAMMER */
 
 		if (optee_header_is_valid(bl_mem_params->image_info.image_base)) {
 			image_info_t *paged_image_info = NULL;
