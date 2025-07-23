@@ -822,52 +822,17 @@ uint32_t bsec_check_nsec_access_rights(uint32_t otp)
 }
 #endif
 
-uint32_t bsec_get_secure_state(void)
+uint32_t bsec_get_state(void)
 {
 	uint32_t status = bsec_get_status();
-	uint32_t result = BSEC_STATE_INVALID;
-	uint32_t otp_enc_id __unused;
-	uint32_t otp_bit_len __unused;
-	int res __unused;
 
-	if ((status & BSEC_OTP_STATUS_INVALID) != 0U) {
-		result = BSEC_STATE_INVALID;
-	} else {
-		if ((status & BSEC_OTP_STATUS_SECURE) != 0U) {
-			if (stm32mp_check_closed_device() == STM32MP_CHIP_SEC_CLOSED) {
-				result = BSEC_STATE_SEC_CLOSED;
-			} else {
-				result = BSEC_STATE_SEC_OPEN;
-			}
-		} else {
-			/* OTP modes OPEN1 and OPEN2 are not supported */
-			result = BSEC_STATE_INVALID;
-		}
+	if ((status & BSEC_OTP_STATUS_INVALID) == BSEC_OTP_STATUS_INVALID) {
+		return BSEC_STATE_INVALID;
 	}
 
-#if STM32MP13
-	res = stm32_get_otp_index(ENCKEY_OTP, &otp_enc_id, &otp_bit_len);
-	if ((res == 0) && (otp_bit_len > 0)) {
-		uint32_t start = otp_enc_id / sizeof(uint32_t);
-		size_t otp_nb = round_up(otp_bit_len, sizeof(uint32_t)) /
-				sizeof(uint32_t);
-		size_t otp_locked_nb = 0U;
-		uint32_t idx;
-
-		for (idx = start; idx < start + otp_nb; idx++) {
-			bool locked = false;
-
-			res = bsec_read_sp_lock(idx, &locked);
-			if ((res != 0U) || (locked == 0U)) {
-				break;
-			}
-			otp_locked_nb++;
-		}
-		if (otp_locked_nb == otp_nb) {
-			result |= BSEC_HARDWARE_KEY;
-		}
+	if ((status & BSEC_OTP_STATUS_SECURE) == BSEC_OTP_STATUS_SECURE) {
+		return BSEC_STATE_CLOSED;
 	}
-#endif
 
-	return result;
+	return BSEC_STATE_INVALID;
 }

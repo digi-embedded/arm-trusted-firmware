@@ -25,6 +25,10 @@
 #define STM32_SMC_NOT_SUPPORTED		0xFFFFFFFFU
 #define STM32_SMC_FAILED		0xFFFFFFFEU
 #define STM32_SMC_INVALID_PARAMS	0xFFFFFFFDU
+#define STM32_SMC_ON_GOING		0xFFFFFFFCU
+#define STM32_SMC_NO_PERM		0xFFFFFFFBU
+
+int32_t plat_svc_smc_setup(void);
 
 void plat_svc_smc_handler(uint32_t smc_fid, u_register_t x1,
 			  u_register_t x2, u_register_t x3,

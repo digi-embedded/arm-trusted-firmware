@@ -26,11 +26,14 @@
 #ifdef IMAGE_BL31
 static uint32_t saved_pll_freq1_reg;
 static uint32_t saved_pll_freq2_reg;
+#if !STM32MP_M33_TDCID
 static uint32_t saved_findiv2cfgr;
-static uint32_t saved_findiv5cfgr;
-static uint32_t saved_findiv63cfgr;
 static uint32_t saved_xbar2cfgr;
+
+static uint32_t saved_findiv5cfgr;
 static uint32_t saved_xbar5cfgr;
+#endif /* STM32MP_M33_TDCID */
+static uint32_t saved_findiv63cfgr;
 static uint32_t saved_xbar63cfgr;
 #endif
 
@@ -65,11 +68,18 @@ struct stm32_clk_platdata {
 	uint32_t *kernelclk;
 };
 
-#if STM32MP_M33_TDCID
-#define CLK_M33TD_CRITICAL CLK_IS_CRITICAL
-#else
-#define CLK_M33TD_CRITICAL 0
-#endif
+#ifdef IMAGE_BL31
+#define PLL1_CFG_MAX_NB		4
+
+struct stm32_pll1_cfgs {
+	struct stm32_pll_dt_cfg cfgs[PLL1_CFG_MAX_NB];
+	uint64_t rates[PLL1_CFG_MAX_NB];
+	uint64_t prate;
+	int32_t pll1_cfg_nb;
+};
+
+static struct stm32_pll1_cfgs pll1_cfgs;
+#endif /* IMAGE_BL31 */
 
 /* A35 Sub-System which manages its own PLL (PLL1) */
 #define A35_SS_CHGCLKREQ	0x0000
@@ -301,6 +311,7 @@ enum clock {
 	_CK_USB3PCIEPHY,
 	_CK_USBTC,
 #endif /* !STM32MP21 */
+	_CK_BUS_RISAF4,
 
 	CK_LAST
 };
@@ -497,7 +508,6 @@ enum enum_gate_cfg {
 	.set_clr	= (_offset_clr),\
 }
 
-/* TODO : ADD MCO... ETH */
 static const struct gate_cfg gates_mp2[LAST_GATE] = {
 	GATE_CFG(GATE_LSE,		RCC_BDCR,		0,	0),
 #if STM32MP21
@@ -612,7 +622,7 @@ static const struct gate_cfg gates_mp2[LAST_GATE] = {
 	GATE_CFG(GATE_STGEN,		RCC_STGENCFGR,		1,	0),
 #if !STM32MP21
 	GATE_CFG(GATE_USB3PCIEPHY,	RCC_USB3PCIEPHYCFGR,	1,	0),
-	GATE_CFG(GATE_USBTC,		RCC_USBTCCFGR,		1,	0),
+	GATE_CFG(GATE_USBTC,		RCC_UCPDCFGR,		1,	0),
 	GATE_CFG(GATE_I2C8,		RCC_I2C8CFGR,		1,	0),
 #endif /* !STM32MP21 */
 	GATE_CFG(GATE_OSPI1,		RCC_OSPI1CFGR,		1,	0),
@@ -1593,7 +1603,7 @@ static const struct clk_stm32 stm32mp2_clk[CK_LAST] = {
 #if !STM32MP21
 	STM32_GATE(_CK_OSPIIOM, CK_BUS_OSPIIOM, _CK_ICN_LS_MCU, 0, GATE_OSPIIOM),
 #endif /* !STM32MP21 */
-	STM32_GATE(_CK_BKPSRAM, CK_BUS_BKPSRAM, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_BKPSRAM),
+	STM32_GATE(_CK_BKPSRAM, CK_BUS_BKPSRAM, _CK_ICN_LS_MCU, 0, GATE_BKPSRAM),
 #if STM32MP21
 	STM32_GATE(_CK_HASH1, CK_BUS_HASH1, _CK_ICN_LS_MCU, 0, GATE_HASH1),
 	STM32_GATE(_CK_HASH2, CK_BUS_HASH2, _CK_ICN_LS_MCU, 0, GATE_HASH2),
@@ -1608,23 +1618,24 @@ static const struct clk_stm32 stm32mp2_clk[CK_LAST] = {
 	STM32_GATE(_CK_SAES, CK_BUS_SAES, _CK_ICN_LS_MCU, 0, GATE_SAES),
 	STM32_GATE(_CK_PKA, CK_BUS_PKA, _CK_ICN_LS_MCU, 0, GATE_PKA),
 
-	STM32_GATE(_CK_GPIOA, CK_BUS_GPIOA, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOA),
-	STM32_GATE(_CK_GPIOB, CK_BUS_GPIOB, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOB),
-	STM32_GATE(_CK_GPIOC, CK_BUS_GPIOC, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOC),
-	STM32_GATE(_CK_GPIOD, CK_BUS_GPIOD, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOD),
-	STM32_GATE(_CK_GPIOE, CK_BUS_GPIOE, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOE),
-	STM32_GATE(_CK_GPIOF, CK_BUS_GPIOF, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOF),
-	STM32_GATE(_CK_GPIOG, CK_BUS_GPIOG, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOG),
-	STM32_GATE(_CK_GPIOH, CK_BUS_GPIOH, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOH),
-	STM32_GATE(_CK_GPIOI, CK_BUS_GPIOI, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOI),
+	STM32_GATE(_CK_GPIOA, CK_BUS_GPIOA, _CK_ICN_LS_MCU, 0, GATE_GPIOA),
+	STM32_GATE(_CK_GPIOB, CK_BUS_GPIOB, _CK_ICN_LS_MCU, 0, GATE_GPIOB),
+	STM32_GATE(_CK_GPIOC, CK_BUS_GPIOC, _CK_ICN_LS_MCU, 0, GATE_GPIOC),
+	STM32_GATE(_CK_GPIOD, CK_BUS_GPIOD, _CK_ICN_LS_MCU, 0, GATE_GPIOD),
+	STM32_GATE(_CK_GPIOE, CK_BUS_GPIOE, _CK_ICN_LS_MCU, 0, GATE_GPIOE),
+	STM32_GATE(_CK_GPIOF, CK_BUS_GPIOF, _CK_ICN_LS_MCU, 0, GATE_GPIOF),
+	STM32_GATE(_CK_GPIOG, CK_BUS_GPIOG, _CK_ICN_LS_MCU, 0, GATE_GPIOG),
+	STM32_GATE(_CK_GPIOH, CK_BUS_GPIOH, _CK_ICN_LS_MCU, 0, GATE_GPIOH),
+	STM32_GATE(_CK_GPIOI, CK_BUS_GPIOI, _CK_ICN_LS_MCU, 0, GATE_GPIOI),
 #if !STM32MP21
-	STM32_GATE(_CK_GPIOJ, CK_BUS_GPIOJ, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOJ),
-	STM32_GATE(_CK_GPIOK, CK_BUS_GPIOK, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOK),
+	STM32_GATE(_CK_GPIOJ, CK_BUS_GPIOJ, _CK_ICN_LS_MCU, 0, GATE_GPIOJ),
+	STM32_GATE(_CK_GPIOK, CK_BUS_GPIOK, _CK_ICN_LS_MCU, 0, GATE_GPIOK),
 #endif /* !STM32MP21 */
-	STM32_GATE(_CK_GPIOZ, CK_BUS_GPIOZ, _CK_ICN_LS_MCU, CLK_M33TD_CRITICAL, GATE_GPIOZ),
+	STM32_GATE(_CK_GPIOZ, CK_BUS_GPIOZ, _CK_ICN_LS_MCU, 0, GATE_GPIOZ),
 	STM32_GATE(_CK_RTC, CK_BUS_RTC, _CK_ICN_LS_MCU, 0, GATE_RTC),
 
-	STM32_GATE(_CK_DDRCP, CK_BUS_DDR, _CK_ICN_DDR, 0, GATE_DDRCP),
+	STM32_GATE(_CK_BUS_RISAF4, CK_BUS_RISAF4, _CK_ICN_LS_MCU, CLK_IS_CRITICAL, GATE_DDRCP),
+	STM32_GATE(_CK_DDRCP, CK_BUS_DDR, _CK_ICN_DDR, CLK_IS_CRITICAL, GATE_DDRCP),
 
 	/* WARNING 2 CLOCKS FOR ONE GATE */
 #if STM32MP21
@@ -1639,7 +1650,7 @@ static const struct clk_stm32 stm32mp2_clk[CK_LAST] = {
 	STM32_GATE(_CK_USB3DR, CK_BUS_USB3DR, _CK_ICN_HSL, 0, GATE_USB3DR),
 #endif /* !STM32MP21 */
 
-	STM32_GATE(_CK_BSEC, CK_BUS_BSEC, _CK_ICN_APB3, CLK_M33TD_CRITICAL, GATE_BSEC),
+	STM32_GATE(_CK_BSEC, CK_BUS_BSEC, _CK_ICN_APB3, 0, GATE_BSEC),
 	STM32_GATE(_CK_IWDG1, CK_BUS_IWDG1, _CK_ICN_APB3, 0, GATE_IWDG1),
 	STM32_GATE(_CK_IWDG2, CK_BUS_IWDG2, _CK_ICN_APB3, 0, GATE_IWDG2),
 
@@ -1819,9 +1830,9 @@ static void stm32mp2_a35_ss_on_bypass(void)
 }
 
 #ifdef IMAGE_BL2
+#if !STM32MP_M33_TDCID
 static void stm32mp2_clk_muxsel_on_hsi(struct stm32_clk_priv *priv)
 {
-#if !STM32MP_M33_TDCID
 	mmio_clrbits_32(priv->base + RCC_MUXSELCFGR,
 			RCC_MUXSELCFGR_MUXSEL0_MASK |
 			RCC_MUXSELCFGR_MUXSEL1_MASK |
@@ -1831,14 +1842,8 @@ static void stm32mp2_clk_muxsel_on_hsi(struct stm32_clk_priv *priv)
 			RCC_MUXSELCFGR_MUXSEL5_MASK |
 			RCC_MUXSELCFGR_MUXSEL6_MASK |
 			RCC_MUXSELCFGR_MUXSEL7_MASK);
-#else
-	/* MUXSEL5 for PLL1 selection = CA35 clock source, always accessible */
-	mmio_clrbits_32(priv->base + RCC_MUXSELCFGR,
-			RCC_MUXSELCFGR_MUXSEL5_MASK);
-#endif
 }
 
-#if !STM32MP_M33_TDCID
 static void stm32mp2_clk_xbar_on_hsi(struct stm32_clk_priv *priv)
 {
 	uintptr_t xbar0cfgr = priv->base + RCC_XBAR0CFGR;
@@ -1853,7 +1858,6 @@ static void stm32mp2_clk_xbar_on_hsi(struct stm32_clk_priv *priv)
 #endif
 #endif /* IMAGE_BL2 */
 
-/* TODO: MOVE THIS FUNCTION A35 ONLY */
 static int stm32mp2_a35_pll1_start(void)
 {
 	uintptr_t a35_ss_address = A35SSC_BASE;
@@ -1891,9 +1895,8 @@ static int stm32mp2_a35_pll1_start(void)
 	return 0;
 }
 
-#ifdef IMAGE_BL2
-static void stm32mp2_a35_pll1_config(uint32_t fbdiv, uint32_t refdiv, uint32_t postdiv1,
-				     uint32_t postdiv2)
+static void stm32mp2_a35_pll1_config(uint32_t fbdiv, uint32_t refdiv,
+				     uint32_t postdiv1, uint32_t postdiv2)
 {
 	uintptr_t a35_ss_address = A35SSC_BASE;
 	uintptr_t pll_freq1_reg = a35_ss_address + A35_SS_PLL_FREQ1;
@@ -1916,6 +1919,7 @@ static void stm32mp2_a35_pll1_config(uint32_t fbdiv, uint32_t refdiv, uint32_t p
 			   A35_SS_PLL_FREQ2_POSTDIV2_MASK);
 }
 
+#ifdef IMAGE_BL2
 static int clk_stm32_pll_config_output(struct stm32_clk_priv *priv,
 				       const struct stm32_clk_pll *pll,
 				       uint32_t *pllcfg,
@@ -2020,6 +2024,9 @@ static void clk_stm32_pll_config_csg(struct stm32_clk_priv *priv,
 }
 
 static int stm32_clk_configure_mux(struct stm32_clk_priv *priv, uint32_t data);
+#if STM32MP_M33_TDCID
+static int stm32_clk_check_mux(struct stm32_clk_priv *priv, uint32_t data);
+#endif
 
 static inline struct stm32_pll_dt_cfg *clk_stm32_pll_get_pdata(int pll_idx)
 {
@@ -2036,14 +2043,13 @@ static int _clk_stm32_pll1_init(struct stm32_clk_priv *priv, int pll_idx,
 	unsigned long refclk;
 	int ret = 0;
 
-	/*
-	 * TODO: check if pll has already good parameters or if we could make
-	    a configuration on the fly.
-	 */
-
 	stm32mp2_a35_ss_on_bypass();
 
+#if STM32MP_M33_TDCID
+	ret = stm32_clk_check_mux(priv, pll_conf->src);
+#else
 	ret = stm32_clk_configure_mux(priv, pll_conf->src);
+#endif
 	if (ret != 0) {
 		panic();
 	}
@@ -2094,11 +2100,6 @@ static int _clk_stm32_pll_init(struct stm32_clk_priv *priv, int pll_idx,
 	uintptr_t pllxcfgr1 = priv->base + pll->reg_pllxcfgr1;
 	bool spread_spectrum = false;
 	int ret = 0;
-
-	/*
-	 * TODO: check if pll has already good parameters or if we could make
-	    a configuration on the fly.
-	 */
 
 	_clk_stm32_pll_disable(priv, pll);
 
@@ -2314,7 +2315,6 @@ static int stm32mp2_clk_flexgen_configure(struct stm32_clk_priv *priv)
 		pdiv = (cmd_data & FLEX_PDIV_MASK) >> FLEX_PDIV_SHIFT;
 		fdiv = (cmd_data & FLEX_FDIV_MASK) >> FLEX_FDIV_SHIFT;
 
-		/* TODO: check if channel can be reconfigured */
 		switch (channel) {
 		case 33U: /* STGEN */
 			break;
@@ -2378,8 +2378,8 @@ static int stm32mp2_clk_switch_to_hsi(struct stm32_clk_priv *priv)
 {
 	/* on reset, bypass use HSI for CA35 clock (FLEXGEN63 = ck_cpu1_ext2f) */
 	stm32mp2_a35_ss_on_bypass();
-	stm32mp2_clk_muxsel_on_hsi(priv);
 #if !STM32MP_M33_TDCID
+	stm32mp2_clk_muxsel_on_hsi(priv);
 	stm32mp2_clk_xbar_on_hsi(priv);
 #endif
 
@@ -2441,40 +2441,15 @@ static int stm32_clk_configure_mux(struct stm32_clk_priv *priv, uint32_t data)
 	return clk_mux_set_parent(priv, mux_id, sel);
 }
 
-static int stm32_clk_configure_clk_get_binding_id(struct stm32_clk_priv *priv, uint32_t data)
+#if STM32MP_M33_TDCID
+static int stm32_clk_check_mux(struct stm32_clk_priv *priv, uint32_t data)
 {
-	unsigned long binding_id = ((unsigned long)data & CLK_ID_MASK) >> CLK_ID_SHIFT;
+    int mux_id = (data & MUX_ID_MASK) >> MUX_ID_SHIFT;
+    int sel = (data & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
 
-	return clk_get_index(priv, binding_id);
+    return clk_mux_get_parent(priv, mux_id) != sel;
 }
-
-static int stm32_clk_configure_clk(struct stm32_clk_priv *priv, uint32_t data)
-{
-	int sel = (data & CLK_SEL_MASK) >> CLK_SEL_SHIFT;
-	int enable = (data & CLK_ON_MASK) >> CLK_ON_SHIFT;
-	int clk_id = 0;
-	int ret = 0;
-
-	clk_id = stm32_clk_configure_clk_get_binding_id(priv, data);
-	if (clk_id < 0) {
-		return clk_id;
-	}
-
-	if (sel != CLK_NOMUX) {
-		ret = _clk_stm32_set_parent_by_index(priv, clk_id, sel);
-		if (ret != 0) {
-			return ret;
-		}
-	}
-
-	if (enable) {
-		clk_stm32_enable_call_ops(priv, clk_id);
-	} else {
-		clk_stm32_disable_call_ops(priv, clk_id);
-	}
-
-	return 0;
-}
+#endif
 
 static int stm32_clk_configure(struct stm32_clk_priv *priv, uint32_t val)
 {
@@ -2489,10 +2464,6 @@ static int stm32_clk_configure(struct stm32_clk_priv *priv, uint32_t val)
 
 	case CMD_MUX:
 		ret = stm32_clk_configure_mux(priv, cmd_data);
-		break;
-
-	case CMD_CLK:
-		ret = stm32_clk_configure_clk(priv, cmd_data);
 		break;
 
 	default:
@@ -2664,23 +2635,13 @@ static int stm32_clk_parse_fdt_all_oscillator(void *fdt, struct stm32_clk_platda
 
 	return 0;
 }
+#endif /* IMAGE_BL2 */
 
-static int clk_stm32_parse_pll_fdt(void *fdt, int subnode, struct stm32_pll_dt_cfg *pll)
+static int clk_stm32_parse_pll_cfg_fdt(void *fdt, struct stm32_pll_dt_cfg *pll,
+				       int subnode_pll)
 {
-	const fdt32_t *cuint = NULL;
-	int subnode_pll = 0;
 	uint32_t val = 0;
 	int err = 0;
-
-	cuint = fdt_getprop(fdt, subnode, "st,pll", NULL);
-	if (!cuint) {
-		return -FDT_ERR_NOTFOUND;
-	}
-
-	subnode_pll = fdt_node_offset_by_phandle(fdt, fdt32_to_cpu(*cuint));
-	if (subnode_pll < 0) {
-		return -FDT_ERR_NOTFOUND;
-	}
 
 	err = fdt_read_uint32_array(fdt, subnode_pll, "cfg", (int)PLLCFG_NB, pll->cfg);
 	if (err != 0) {
@@ -2711,6 +2672,27 @@ static int clk_stm32_parse_pll_fdt(void *fdt, int subnode, struct stm32_pll_dt_c
 	}
 
 	return 0;
+}
+
+#ifdef IMAGE_BL2
+static int clk_stm32_parse_pll_fdt(void *fdt, int subnode,
+				   struct stm32_pll_dt_cfg *pll)
+{
+	const fdt32_t *cuint = NULL;
+	int subnode_pll = 0;
+
+	cuint = fdt_getprop(fdt, subnode, "st,pll", NULL);
+	if (cuint == NULL) {
+		return -FDT_ERR_NOTFOUND;
+	}
+
+	subnode_pll = fdt_node_offset_by_phandle(fdt, fdt32_to_cpu(*cuint));
+
+	if (subnode_pll < 0) {
+		return -FDT_ERR_NOTFOUND;
+	}
+
+	return clk_stm32_parse_pll_cfg_fdt(fdt, pll, subnode_pll);
 }
 
 #define RCC_PLL_NAME_SIZE 12
@@ -2883,18 +2865,19 @@ int stm32mp2_pll1_disable(void)
 	saved_pll_freq2_reg = mmio_read_32(pll_freq2_reg);
 
 	/* save FLEXGEN MUX setting */
-	saved_findiv2cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_FINDIV2CFGR);
-	saved_findiv5cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_FINDIV5CFGR);
 	saved_findiv63cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_FINDIV63CFGR);
-	saved_xbar2cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_XBAR2CFGR);
-	saved_xbar5cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_XBAR5CFGR);
 	saved_xbar63cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_XBAR63CFGR);
+#if !STM32MP_M33_TDCID
+	saved_findiv2cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_FINDIV2CFGR);
+	saved_xbar2cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_XBAR2CFGR);
+	saved_findiv5cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_FINDIV5CFGR);
+	saved_xbar5cfgr = mmio_read_32(stm32mp2_clock_data.base + RCC_XBAR5CFGR);
 
 	/*
 	 * use the clock tree expected by ROM code to avoid a poling timeout
 	 * issue for wake up of Stop2 low power modes, so use HSI for
-	 * flexgen 2 : ck_icn_ddr (ck_icn_m_cpu1)
-	 * flexgen 5 : ck_icn_nic (ck_icn_s_bootrom)
+	 * flexgen 2 : ck_icn_ddr (ck_icn_m_cpu1)            (when CA35TDCID)
+	 * flexgen 5 : ck_icn_nic (ck_icn_s_bootrom)         (when CA35TDCID)
 	 * flexgen 63 : ck_cpu1_ext2f, the CA35 bypass clock
 	 */
 
@@ -2923,6 +2906,7 @@ int stm32mp2_pll1_disable(void)
 			panic();
 		}
 	}
+#endif /* STM32MP_M33_TDCID */
 
 	if ((saved_xbar63cfgr & RCC_XBAR63CFGR_XBAR63SEL_MASK) != XBAR_SRC_HSI) {
 		mmio_clrsetbits_32(stm32mp2_clock_data.base + RCC_XBAR63CFGR,
@@ -2962,6 +2946,7 @@ int stm32mp2_pll1_enable(void)
 		panic();
 	}
 
+#if !STM32MP_M33_TDCID
 	/* restore FLEXGEN MUX setting */
 	if ((saved_xbar2cfgr & RCC_XBAR2CFGR_XBAR2SEL_MASK) != XBAR_SRC_HSI) {
 		mmio_write_32(stm32mp2_clock_data.base + RCC_FINDIV2CFGR, saved_findiv2cfgr);
@@ -2985,6 +2970,7 @@ int stm32mp2_pll1_enable(void)
 		}
 	}
 
+#endif /* STM32MP_M33_TDCID */
 	if ((saved_xbar63cfgr & RCC_XBAR63CFGR_XBAR63SEL_MASK) != XBAR_SRC_HSI) {
 		mmio_write_32(stm32mp2_clock_data.base + RCC_FINDIV63CFGR, saved_findiv63cfgr);
 		if (wait_findivsr(63) != 0) {
@@ -2999,3 +2985,170 @@ int stm32mp2_pll1_enable(void)
 	return 0;
 #endif
 }
+
+#ifdef IMAGE_BL31
+uint64_t stm32mp2_pll1_recalc_rate()
+{
+	return clk_stm32_pll1_recalc_rate(NULL, 0, pll1_cfgs.prate);
+}
+
+int32_t stm32mp2_pll1_set_rate(uint64_t rate)
+{
+	int32_t cfg_idx;
+	int32_t err;
+
+	/* Find cfg_idx */
+	for (cfg_idx = 0; cfg_idx < pll1_cfgs.pll1_cfg_nb; cfg_idx++) {
+		if (pll1_cfgs.rates[cfg_idx] == rate) {
+			break;
+		}
+	}
+	if (cfg_idx == pll1_cfgs.pll1_cfg_nb) {
+		return -EINVAL;
+	}
+
+	/* Change the PLL1 rate */
+	stm32mp2_a35_ss_on_bypass();
+	stm32mp2_a35_pll1_config(pll1_cfgs.cfgs[cfg_idx].cfg[FBDIV],
+				 pll1_cfgs.cfgs[cfg_idx].cfg[REFDIV],
+				 pll1_cfgs.cfgs[cfg_idx].cfg[POSTDIV1],
+				 pll1_cfgs.cfgs[cfg_idx].cfg[POSTDIV2]);
+	err = stm32mp2_a35_pll1_start();
+
+	if (err != 0) {
+		ERROR("pll1_set_rate failed (%d)", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static uint64_t pll1_rate_for_cfg(uint64_t pll1_prate,
+				  uint32_t pll1_cfg[PLLCFG_NB])
+{
+	uint64_t rate;
+
+	/* VCO */
+	rate = pll1_prate * pll1_cfg[FBDIV] / pll1_cfg[REFDIV];
+
+	/* Post divide */
+	if (pll1_cfg[POSTDIV1] != 0U && pll1_cfg[POSTDIV2] != 0U) {
+		rate = rate / (pll1_cfg[POSTDIV1] * pll1_cfg[POSTDIV2]);
+	}
+
+	return rate;
+}
+
+static int32_t stm32mp2_pll1_parse_dt(uint32_t sel)
+{
+	void *fdt = NULL;
+	int32_t node_rcc, node_pll1, subnode_pll1;
+	uint32_t dt_mux_id, dt_sel;
+	int32_t cfg_idx;
+	int32_t err;
+
+	if (fdt_get_address(&fdt) == 0) {
+		err = -ENOENT;
+		goto exit_label;
+	}
+
+	node_rcc = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_CLK_COMPAT);
+	if (node_rcc < 0) {
+		err = -EINVAL;
+		goto exit_label;
+	}
+
+	node_pll1 = fdt_subnode_offset(fdt, node_rcc, "st,pll-1");
+	if (!fdt_check_node(node_pll1)) {
+		err = -EINVAL;
+		goto exit_label;
+	}
+
+	/* Iterate over PLL1 configurations */
+	subnode_pll1 = fdt_first_subnode(fdt, node_pll1);
+	for (cfg_idx = 0; cfg_idx < PLL1_CFG_MAX_NB; cfg_idx++) {
+		if (subnode_pll1 < 0) {
+			pll1_cfgs.pll1_cfg_nb = cfg_idx;
+			err = 0;
+			break;
+		}
+
+		/* Read attributes */
+		err = clk_stm32_parse_pll_cfg_fdt(fdt, &pll1_cfgs.cfgs[cfg_idx],
+					      subnode_pll1);
+		if (err != 0) {
+			break;
+		}
+
+		/* We are not expecting csg or frac configuration for PLL1 */
+		if (pll1_cfgs.cfgs[cfg_idx].frac != 0U
+		    || pll1_cfgs.cfgs[cfg_idx].csg_enabled) {
+			err = -EINVAL;
+			break;
+		}
+
+		/* If the src is given, verify it's the actual configuration */
+		if (pll1_cfgs.cfgs[cfg_idx].src == 0) {
+			err = -EINVAL;
+			break;
+		} else {
+			dt_mux_id = (pll1_cfgs.cfgs[cfg_idx].src & MUX_ID_MASK)
+				     >> MUX_ID_SHIFT;
+			dt_sel = (pll1_cfgs.cfgs[cfg_idx].src & MUX_SEL_MASK)
+				  >> MUX_SEL_SHIFT;
+
+			/* Verify it's the actual configuration */
+			if (dt_mux_id != MUX_MUXSEL5 || dt_sel != sel) {
+				err = -EINVAL;
+				break;
+			}
+		}
+
+		subnode_pll1 = fdt_next_subnode(fdt, subnode_pll1);
+	}
+	if (err != 0) {
+		goto exit_label;
+	}
+
+	err = 0;
+exit_label:
+	return err;
+
+}
+
+int32_t stm32mp2_pll1_init()
+{
+	int32_t cfg_idx;
+	uint32_t sel;
+	int err;
+
+	struct stm32_clk_priv *priv = clk_stm32_get_priv();
+
+	/* Get PLL1 actual reference clock */
+	sel = (mmio_read_32(RCC_BASE + RCC_MUXSELCFGR)
+	       & RCC_MUXSELCFGR_MUXSEL5_MASK) >> RCC_MUXSELCFGR_MUXSEL5_SHIFT;
+
+	/* Parse DT for PLL1 */
+	err = stm32mp2_pll1_parse_dt(sel);
+	if (err != 0) {
+		goto exit_label;
+	}
+
+	/* Find pll1 reference clock rate */
+	if (sel < sizeof(muxsel_src)) {
+		pll1_cfgs.prate = _clk_stm32_get_rate(priv, muxsel_src[sel]);
+	} else {
+		return -EINVAL;
+	}
+
+	/* Find rate for each config */
+	for (cfg_idx = 0; cfg_idx < pll1_cfgs.pll1_cfg_nb; cfg_idx++) {
+		pll1_cfgs.rates[cfg_idx] = pll1_rate_for_cfg(pll1_cfgs.prate,
+					    pll1_cfgs.cfgs[cfg_idx].cfg);
+	}
+
+	err = 0;
+exit_label:
+	return err;
+}
+#endif /* IMAGE_BL31 */

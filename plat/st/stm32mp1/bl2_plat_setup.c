@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2025, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -409,7 +409,9 @@ void bl2_el3_plat_arch_setup(void)
 		panic();
 	}
 
-	stm32_save_boot_info(boot_context);
+	if (stm32_save_boot_info(boot_context) != 0) {
+		panic();
+	}
 
 #if STM32MP_USB_PROGRAMMER && STM32MP15
 	/* Deconfigure all UART RX pins configured by ROM code */
@@ -580,6 +582,12 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 			prepare_encryption();
 		}
 #endif
+
+		/* Restore DDR training area on resume after encryption was enabled */
+		if (wakeup_ddr_sr) {
+			stm32_restore_ddr_training_area();
+		}
+
 		if (stm32mp_skip_boot_device_after_standby()) {
 			return 0;
 		}
@@ -709,9 +717,7 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 			bl_mem_params->ep_info.args.arg0 = 0;
 		}
 
-		if (bl_mem_params->ep_info.pc >= STM32MP_DDR_BASE) {
-			stm32_context_save_bl2_param();
-		}
+		stm32_context_save_bl2_param();
 		break;
 
 	case BL33_IMAGE_ID:
@@ -720,7 +726,10 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 		bl32_mem_params->ep_info.lr_svc = bl_mem_params->ep_info.pc;
 #if PSA_FWU_SUPPORT
 		if (plat_fwu_is_enabled()) {
-			stm32_fwu_set_boot_idx();
+			err = stm32_fwu_set_boot_idx();
+			if (err != 0) {
+				panic();
+			}
 		}
 #endif /* PSA_FWU_SUPPORT */
 		break;

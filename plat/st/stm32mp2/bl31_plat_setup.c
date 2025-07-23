@@ -103,9 +103,9 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 			 *  share it to BL33
 			 */
 			if (arg2 != 0U) {
-				bl33_image_ep_info.args.arg0 = 0U;
+				bl33_image_ep_info.args.arg0 = arg2;
 				bl33_image_ep_info.args.arg1 = 0U;
-				bl33_image_ep_info.args.arg2 = arg2;
+				bl33_image_ep_info.args.arg2 = 0U;
 			}
 		}
 
@@ -146,7 +146,7 @@ void bl31_plat_arch_setup(void)
 		/* Initialize the runtime services e.g. PSCI. */
 		runtime_svc_init();
 
-		stm32_pm_context_restore();
+		stm32_pm_context_init();
 
 		/* Jump manually to BL31 warm entry point, with MMU disabled. */
 		dsbsy();
@@ -178,12 +178,29 @@ void bl31_plat_runtime_setup(void)
 
 entry_point_info_t *bl31_plat_get_next_image_ep_info(unsigned int type)
 {
-	if (type == NON_SECURE)
-		return &bl33_image_ep_info;
-	if (type == SECURE)
-		return &bl32_image_ep_info;
+	entry_point_info_t *next_image_info = NULL;
 
-	return NULL;
+	assert(sec_state_is_valid(type));
+
+	switch (type) {
+	case NON_SECURE:
+		next_image_info = &bl33_image_ep_info;
+		break;
+
+	case SECURE:
+		next_image_info = &bl32_image_ep_info;
+		break;
+
+	default:
+		break;
+	}
+
+	/* None of the next images on ST platforms can have 0x0 as the entrypoint */
+	if ((next_image_info == NULL) || (next_image_info->pc == 0UL)) {
+		return NULL;
+	}
+
+	return next_image_info;
 }
 
 #if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER

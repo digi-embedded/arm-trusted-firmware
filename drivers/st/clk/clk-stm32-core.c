@@ -444,8 +444,17 @@ int clk_stm32_enable_call_ops(struct stm32_clk_priv *priv, uint16_t id)
 {
 	const struct stm32_clk_ops *ops = _clk_get_ops(priv, id);
 
+	if ((ops->is_enabled != NULL) && ops->is_enabled(priv, id)) {
+		return 0;
+	}
+
 	if (ops->enable != NULL) {
 		ops->enable(priv, id);
+	}
+
+	if ((ops->is_enabled != NULL) && !ops->is_enabled(priv, id)) {
+		ERROR("failed to enable clock id: %u\n", id);
+		panic();
 	}
 
 	return 0;
@@ -493,11 +502,14 @@ int _clk_stm32_enable(struct stm32_clk_priv *priv, int id)
 
 void clk_stm32_disable_call_ops(struct stm32_clk_priv *priv, uint16_t id)
 {
+/* Do not disable clock when not TDCID */
+#if !STM32MP_M33_TDCID
 	const struct stm32_clk_ops *ops = _clk_get_ops(priv, id);
 
 	if (ops->disable != NULL) {
 		ops->disable(priv, id);
 	}
+#endif
 }
 
 static void _clk_stm32_disable_core(struct stm32_clk_priv *priv, int id)
@@ -557,6 +569,7 @@ static int clk_stm32_enable(unsigned long binding_id)
 
 	id = clk_get_index(priv, binding_id);
 	if (id == -EINVAL) {
+		ERROR("%s: unsupported clock id %lu\n", __func__, binding_id);
 		return id;
 	}
 
@@ -571,6 +584,8 @@ static void clk_stm32_disable(unsigned long binding_id)
 	id = clk_get_index(priv, binding_id);
 	if (id != -EINVAL) {
 		_clk_stm32_disable(priv, id);
+	} else {
+		ERROR("%s: unsupported clock id %lu\n", __func__, binding_id);
 	}
 }
 
@@ -581,6 +596,7 @@ static bool clk_stm32_is_enabled(unsigned long binding_id)
 
 	id = clk_get_index(priv, binding_id);
 	if (id == -EINVAL) {
+		ERROR("%s: unsupported clock id %lu\n", __func__, binding_id);
 		return false;
 	}
 
@@ -594,6 +610,7 @@ static unsigned long clk_stm32_get_rate(unsigned long binding_id)
 
 	id = clk_get_index(priv, binding_id);
 	if (id == -EINVAL) {
+		ERROR("%s: unsupported clock id %lu\n", __func__, binding_id);
 		return 0UL;
 	}
 
@@ -607,6 +624,7 @@ static int clk_stm32_get_parent(unsigned long binding_id)
 
 	id = clk_get_index(priv, binding_id);
 	if (id == -EINVAL) {
+		ERROR("%s: unsupported clock id %lu\n", __func__, binding_id);
 		return id;
 	}
 

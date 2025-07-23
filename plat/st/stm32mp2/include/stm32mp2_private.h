@@ -33,7 +33,8 @@ enum syscfg_io_ids {
 	SYSFG_NB_IO_ID
 };
 
-void stm32mp_syscfg_enable_io_compensation(enum syscfg_io_ids id);
+void stm32mp_syscfg_enable_io_comp(enum syscfg_io_ids id);
+void stm32mp_syscfg_fixed_io_comp(enum syscfg_io_ids id, uint32_t pmos, uint32_t nmos);
 
 void stm32mp_syscfg_set_icn_qos(void);
 
@@ -89,14 +90,14 @@ static inline uint32_t stm32_otp_read_sw_lock(uint32_t otp, bool *value)
 	return bsec_read_sw_lock(otp, value);
 }
 
-static inline bool stm32_otp_is_closed_device(void)
+static inline bool stm32_is_bsec_closed(void)
 {
-	return bsec_mode_is_closed_device();
+	return (bsec_get_state() & BSEC_STATE_MASK) == BSEC_STATE_CLOSED;
 }
 
 static inline bool stm32_otp_is_hwkey_valid(void)
 {
-	if ((bsec_get_secure_state() & BSEC_HARDWARE_KEY) != 0U) {
+	if ((bsec_get_state() & BSEC_HARDWARE_KEY) != 0U) {
 		return true;
 	}
 
@@ -109,7 +110,7 @@ uint32_t stm32_otp_shadow_read(uint32_t *val, uint32_t otp);
 uint32_t stm32_otp_write(uint32_t val, uint32_t otp);
 uint32_t stm32_otp_set_sr_lock(uint32_t otp);
 uint32_t stm32_otp_read_sw_lock(uint32_t otp, bool *value);
-bool stm32_otp_is_closed_device(void);
+bool stm32_is_bsec_closed(void);
 #endif /* STM32MP_M33_TDCID */
 
 uint32_t otp_mirror_read(uint32_t *val, uint32_t otp);

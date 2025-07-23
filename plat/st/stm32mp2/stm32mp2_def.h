@@ -157,8 +157,15 @@
 #define RETRAM_SIZE			U(0x00020000)
 #define STM32MP_BACKUP_RAM_BASE		U(0x42000000)
 
-/* the first 4KB of SRAM1 are reserved are for BSEC shadow */
-#define STM32MP_SEC_SRAM1_SIZE		U(0x1000)
+/* The first 4KB of SRAM1 are reserved are for BSEC mirror */
+#define STM32MP_BSEC_MIRROR_BASE	SRAM1_BASE
+#define STM32MP_BSEC_MIRROR_SIZE	PAGE_SIZE
+
+#if STM32MP_M33_TDCID
+/* The second 4-kByte page of SRAM1 is used in CM33TDCID for the SCMI shared memory  */
+#define STM32MP_SCMI_SEC_SHMEM_BASE	(SRAM1_BASE + PAGE_SIZE)
+#define STM32MP_SCMI_SEC_SHMEM_SIZE	PAGE_SIZE
+#endif /* STM32MP_M33_TDCID */
 
 #define STM32MP_SEC_SYSRAM_BASE		STM32MP_SYSRAM_BASE
 
@@ -220,7 +227,7 @@ enum ddr_type {
 #define STM32MP_BL2_RO_SIZE		U(0x00021000)	/* 132 KB */
 #define STM32MP_BL2_SIZE		U(0x0002C000)	/* 176 KB for BL2 */
 #else /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
-#define STM32MP_BL2_RO_SIZE		U(0x00021000)	/* 132 KB */
+#define STM32MP_BL2_RO_SIZE		U(0x00020000)	/* 128 KB */
 #define STM32MP_BL2_SIZE		U(0x0002C000)	/* 176 KB for BL2 */
 #endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */
 #else
@@ -261,7 +268,9 @@ enum ddr_type {
  * MAX_MMAP_REGIONS is usually:
  * BL stm32mp2_mmap size + mmap regions in *_plat_arch_setup
  */
-#if STM32MP_USB_PROGRAMMER || defined(IMAGE_BL31)
+#if defined(IMAGE_BL31) && STM32MP_M33_TDCID
+#define MAX_MMAP_REGIONS			8
+#elif STM32MP_USB_PROGRAMMER || defined(IMAGE_BL31)
 #define MAX_MMAP_REGIONS			7
 #else
 #define MAX_MMAP_REGIONS			6
@@ -279,7 +288,7 @@ enum ddr_type {
 #endif
 
 #if STM32MP_DDR_FIP_IO_STORAGE
-#define STM32MP_DDR_FW_BASE		(SRAM1_BASE + STM32MP_SEC_SRAM1_SIZE)
+#define STM32MP_DDR_FW_BASE		(SRAM1_BASE + STM32MP_BSEC_MIRROR_SIZE)
 #define STM32MP_DDR_FW_DMEM_OFFSET	U(0x400)
 #define STM32MP_DDR_FW_IMEM_OFFSET	U(0x800)
 #define STM32MP_DDR_FW_MAX_SIZE		U(0x8800)
@@ -338,32 +347,57 @@ enum ddr_type {
 #define EXTI1_C1IMR2			U(0x90)
 #define EXTI1_C1IMR3			U(0xA0)
 
-#define EXTI1_C1IMR1_PVD		BIT(16)
-#define EXTI1_C1IMR1_PVM		BIT(17)
+#define EXTI1_C1IMR1_GPIO		GENMASK_32(15, 0)
+#define EXTI1_C1IMR1_PVD		BIT_32(16)
+#define EXTI1_C1IMR1_PVM		BIT_32(17)
 
-#define EXTI1_C1IMR2_WKUP1		BIT(52 - 32)
-#define EXTI1_C1IMR2_WKUP2		BIT(53 - 32)
-#define EXTI1_C1IMR2_WKUP3		BIT(54 - 32)
-#define EXTI1_C1IMR2_WKUP4		BIT(55 - 32)
-#define EXTI1_C1IMR2_WKUP5		BIT(56 - 32)
-#define EXTI1_C1IMR2_WKUP6		BIT(57 - 32)
+#define EXTI1_C1IMR2_WKUP1		BIT_32(52 - 32)
+#define EXTI1_C1IMR2_WKUP2		BIT_32(53 - 32)
+#define EXTI1_C1IMR2_WKUP3		BIT_32(54 - 32)
+#define EXTI1_C1IMR2_WKUP4		BIT_32(55 - 32)
+#define EXTI1_C1IMR2_WKUP5		BIT_32(56 - 32)
+#define EXTI1_C1IMR2_WKUP6		BIT_32(57 - 32)
 
 #define EXTI1_C1IMR2_WKUP_MASK		GENMASK_32(57 - 32, 52 - 32)
+
+#define EXTI1_C1IMR3_CPU2_SEV		BIT_32(64 - 64)
+
+/* EXTI1 software interrupt event register  */
+#define EXTI1_SWIER3			U(0x48)
+#define EXTI1_RPR3			U(0x4C)
+
+#define EXTI1_BIT(_id)			BIT_32(_id % 32)
+
+#define EXTI1_C2SEV			EXTI1_BIT(64)
+#define EXTI1_C1SEV			EXTI1_BIT(65)
 
 /*******************************************************************************
  * STM32MP2 EXTI2
  ******************************************************************************/
+#if !STM32MP21
 #define STM32MP_EXTI2_BASE		U(0x46230000)
+#else
+#define STM32MP_EXTI2_BASE		U(0x442D0000)
+#endif /* !STM32MP21 */
 
+#define EXTI2_SWIER2			U(0x28)
 #define EXTI2_C1IMR1			U(0x80)
 #define EXTI2_C1IMR2			U(0x90)
+#if !STM32MP21
 #define EXTI2_C1IMR3			U(0xA0)
+#endif /* !STM32MP21 */
 #define EXTI2_C2IMR1			U(0xC0)
 #define EXTI2_C2IMR2			U(0xD0)
+#if !STM32MP21
 #define EXTI2_C2IMR3			U(0xE0)
 #define EXTI2_C3IMR1			U(0x100)
 #define EXTI2_C3IMR2			U(0x110)
 #define EXTI2_C3IMR3			U(0x120)
+#endif /* !STM32MP21 */
+
+#define EXTI_CmCIDCFGR(n)		(0x300U + ((n) * 4U))
+#define EXTI2_BIT(_id)			BIT_32(_id % 32)
+#define EXTI2_C1SEV			EXTI2_BIT(60)
 
 /*******************************************************************************
  * STM32MP2 GPIO
@@ -422,6 +456,14 @@ enum ddr_type {
 #define DEBUG_UART_RST_BIT			RCC_UARTxCFGR_UARTxRST
 #define DEBUG_UART_PREDIV_CFGR			RCC_PREDIV8CFGR
 #define DEBUG_UART_FINDIV_CFGR			RCC_FINDIV8CFGR
+
+/*******************************************************************************
+ * STM32MP2 IPCC
+ ******************************************************************************/
+#define IPCC1_BASE				U(0x40490000)
+#if !STM32MP21
+#define IPCC2_BASE				U(0x46250000)
+#endif /* !STM32MP21 */
 
 /*******************************************************************************
  * STM32MP2 SDMMC
@@ -483,13 +525,13 @@ enum ddr_type {
 #define PACKAGE_OTP_PKG_SHIFT			0
 
 /* IWDG OTP */
-#define HCONF1_OTP_IWDG_HW_MASK(i)		BIT((i) * 3U)
-#define HCONF1_OTP_IWDG_FZ_STOP_MASK(i)		BIT((i) * 3U + 1U)
-#define HCONF1_OTP_IWDG_FZ_STANDBY_MASK(i)	BIT((i) * 3U + 2U)
+#define HCONF1_OTP_IWDG_HW_MASK(i)		BIT_32((i) * 3U)
+#define HCONF1_OTP_IWDG_FZ_STOP_MASK(i)		BIT_32((i) * 3U + 1U)
+#define HCONF1_OTP_IWDG_FZ_STANDBY_MASK(i)	BIT_32((i) * 3U + 2U)
 
 /* NAND OTP */
 /* NAND parameter storage flag */
-#define NAND_PARAM_STORED_IN_OTP		BIT(31)
+#define NAND_PARAM_STORED_IN_OTP		BIT_32(31)
 
 /* NAND page size in bytes */
 #define NAND_PAGE_SIZE_MASK			GENMASK_32(30, 29)
@@ -511,7 +553,7 @@ enum ddr_type {
 #define NAND_BLOCK_NB_UNIT			U(256)
 
 /* NAND bus width in bits */
-#define NAND_WIDTH_MASK				BIT(18)
+#define NAND_WIDTH_MASK				BIT_32(18)
 #define NAND_WIDTH_SHIFT			18
 
 /* NAND number of ECC bits per 512 bytes */
@@ -524,13 +566,13 @@ enum ddr_type {
 #define NAND_ECC_ON_DIE				U(4)
 
 /* NAND number of planes */
-#define NAND_PLANE_BIT_NB_MASK			BIT(14)
+#define NAND_PLANE_BIT_NB_MASK			BIT_32(14)
 
 /* NAND2 OTP */
 #define NAND2_PAGE_SIZE_SHIFT			16
 
 /* NAND2 config distribution */
-#define NAND2_CONFIG_DISTRIB			BIT(0)
+#define NAND2_CONFIG_DISTRIB			BIT_32(0)
 #define NAND2_PNAND_NAND2_SNAND_NAND1		U(0)
 #define NAND2_PNAND_NAND1_SNAND_NAND2		U(1)
 
@@ -560,8 +602,13 @@ enum ddr_type {
 #define TAMP_BKP_SEC_NUMBER		U(10)
 #define TAMP_SCR			U(0x3C)
 #define TAMP_COUNTR			U(0x40)
+#define TAMP_R0CIDCFGR			U(0x80)
+#define TAMP_R0CIDCFGR_CFEN		BIT_32(0)
+#define TAMP_R0CIDCFGR_CID		GENMASK_32(6, 4)
+#define TAMP_R0CIDCFGR_CID_SHIFT	U(4)
+#define TAMP_R0CIDCFGR_CID1		(RIF_CID1 << TAMP_R0CIDCFGR_CID_SHIFT)
 
-#define TAMP_SR_LSE_MONITORING		BIT(18)
+#define TAMP_SR_LSE_MONITORING		BIT_32(18)
 
 /*******************************************************************************
  * STM32MP2 USB
@@ -718,5 +765,6 @@ enum ddr_type {
 #define DT_SDMMC2_COMPAT			"st,stm32mp25-sdmmc2"
 #define DT_TAMP_NVRAM_COMPAT			"st,stm32mp25-tamp-nvram"
 #define DT_UART_COMPAT				"st,stm32h7-uart"
+#define DT_CPU_COMPAT				"arm,cortex-a35"
 
 #endif /* STM32MP2_DEF_H */

@@ -1015,7 +1015,9 @@ static int stm32_ospi_exec_op(const struct spi_mem_op *op)
 
 static int stm32_ospi_dirmap_read(const struct spi_mem_op *op)
 {
+#if defined(STM32MP_M33_TDCID) && !STM32MP_M33_TDCID
 	size_t addr_max;
+#endif /* STM32MP_M33_TDCID */
 	uint8_t fmode = _OSPI_CR_FMODE_INDR;
 
 	if (op->cmd.dtr) {
@@ -1026,10 +1028,12 @@ static int stm32_ospi_dirmap_read(const struct spi_mem_op *op)
 		}
 	}
 
+#if defined(STM32MP_M33_TDCID) && !STM32MP_M33_TDCID
 	addr_max = op->addr.val + op->data.nbytes + 1U;
 	if ((addr_max < stm32_ospi.mm_size) && (op->addr.buswidth != 0U)) {
 		fmode = _OSPI_CR_FMODE_MM;
 	}
+#endif /* STM32MP_M33_TDCID */
 
 	return stm32_ospi_send(op, fmode);
 }

@@ -1,12 +1,20 @@
 #
-# Copyright (c) 2023-2024, STMicroelectronics - All Rights Reserved
+# Copyright (c) 2023-2025, STMicroelectronics - All Rights Reserved
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
+STM32MP_M33_TDCID		?=	0
+
 # Extra partitions used to find FIP, contains:
+ifeq (${STM32MP_M33_TDCID},1)
+# fsbl-m (2), m33ddr (2), m33lp (2), m33fw (2), metadata (2) and the
+# FIP partitions (2)
+STM32_EXTRA_PARTS		:=	12
+else
 # metadata (2) and fsbl-m (2) and the FIP partitions (default is 2).
 STM32_EXTRA_PARTS		:=	6
+endif
 
 include plat/st/common/common.mk
 
@@ -17,7 +25,7 @@ ifeq ($(ENABLE_PIE),1)
 BL2_IN_XIP_MEM			:=	1
 endif
 
-STM32MP_BL33_EL1		?=	1
+STM32MP_BL33_EL1		?=	0
 ifeq ($(STM32MP_BL33_EL1),1)
 INIT_UNUSED_NS_EL2		:=	1
 endif
@@ -41,7 +49,6 @@ TF_CFLAGS			+=	-DSTM32MP2X
 STM32MP21			?=	0
 STM32MP23			?=	0
 STM32MP25			?=	0
-STM32MP_M33_TDCID		?=	0
 
 ifneq ($(findstring stm32mp21,$(DTB_FILE_NAME)),)
 STM32MP21			:=	1
@@ -76,11 +83,20 @@ else
 STM32_HEADER_VERSION_MINOR	:=	2
 endif
 
+# PM context version check between BL2 and BL31: break backward compatibility
+STM32MP_CONTEXT_VERSION		?=	1
+
 PKA_USE_NIST_P256		?=	0
 PKA_USE_BRAINPOOL_P256T1 	?=	0
 
 STM32_HASH_VER			:=	4
 STM32_RNG_VER			:=	4
+ifeq ($(STM32MP21),1)
+STM32_RNG_VER_MINOR		:=	4
+else
+STM32_RNG_VER_MINOR		:=	3
+endif
+
 STM32_SAES_VER			:=	50 # 0x32
 
 ifeq ($(STM32MP21),1)
@@ -116,6 +132,13 @@ else #STM32MP_M33_TDCID
 STM32MP_DDR_DUAL_AXI_PORT	:=	0
 STM32MP_DDR_FIP_IO_STORAGE	:=	0
 endif #STM32MP_M33_TDCID
+
+# SIP support
+ifeq ($(STM32MP_M33_TDCID),0)
+STM32MP_SIP_CA33SS_CLK    ?=    0
+else
+STM32MP_SIP_CA33SS_CLK    ?=    1
+endif
 
 # Device tree
 ifeq ($(STM32MP21),1)
@@ -155,14 +178,17 @@ STM32MP_DDR_FW_NAME		:=	${DDR_TYPE}_pmu_train.bin
 STM32MP_DDR_FW			:=	${STM32MP_DDR_FW_PATH}/${STM32MP_DDR_FW_NAME}
 endif
 FDT_SOURCES			+=	$(addprefix $(DT_SOURCE_PATH)/, $(patsubst %.dtb,%.dts,$(STM32MP_FW_CONFIG_NAME)))
+
 # Add the FW_CONFIG to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_FW_CONFIG},--fw-config))
+
 # Add the SOC_FW_CONFIG to FIP and specify the same to certtool
 ifeq ($(ENCRYPT_BL31),1)
-$(eval $(call TOOL_ADD_IMG,STM32MP_SOC_FW_CONFIG,--soc-fw-config,,$(ENCRYPT_BL31)))
-else
-$(eval $(call TOOL_ADD_PAYLOAD,${STM32MP_SOC_FW_CONFIG},--soc-fw-config))
+STM32MP_SOC_FW_CONFIG_ENC 	:= 	$(patsubst %.dtb,%_enc.dtb,$(STM32MP_SOC_FW_CONFIG))
+$(eval $(call ENCRYPT_FW,$(STM32MP_SOC_FW_CONFIG),$(STM32MP_SOC_FW_CONFIG_ENC)))
 endif
+$(eval $(call TOOL_ADD_IMG_PAYLOAD,STM32MP_SOC_FW_CONFIG,$(STM32MP_SOC_FW_CONFIG),--soc-fw-config,$(patsubst %.dtb,%.dts,$(STM32MP_SOC_FW_CONFIG)),,$(STM32MP_SOC_FW_CONFIG_ENC)))
+
 ifeq (${STM32MP_DDR_FIP_IO_STORAGE},1)
 # Add the FW_DDR to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_IMG,STM32MP_DDR_FW,--ddr-fw))
@@ -180,6 +206,7 @@ $(eval $(call assert_booleans,\
 		PKA_USE_NIST_P256 \
 		STM32MP_CRYPTO_ROM_LIB \
 		STM32_SAES_CRYP2 \
+		STM32MP_CONTEXT_VERSION \
 		STM32MP_DDR_DUAL_AXI_PORT \
 		STM32MP_DDR_FIP_IO_STORAGE \
 		STM32MP_DDR3_TYPE \
@@ -190,6 +217,7 @@ $(eval $(call assert_booleans,\
 		STM32MP21 \
 		STM32MP23 \
 		STM32MP25 \
+		STM32MP_SIP_CA33SS_CLK \
 		STM32MP_BL33_EL1 \
 )))
 
@@ -198,6 +226,7 @@ $(eval $(call assert_numerics,\
 		PLAT_PARTITION_MAX_ENTRIES \
 		STM32_HASH_VER \
 		STM32_RNG_VER \
+		STM32_RNG_VER_MINOR \
 		STM32_SAES_VER \
 		STM32_TF_A_COPIES \
 )))
@@ -212,9 +241,11 @@ $(eval $(call add_defines,\
 		PLAT_TBBR_IMG_DEF \
 		STM32_HASH_VER \
 		STM32_RNG_VER \
+		STM32_RNG_VER_MINOR \
 		STM32_SAES_VER \
 		STM32_SAES_CRYP2 \
 		STM32_TF_A_COPIES \
+		STM32MP_CONTEXT_VERSION \
 		STM32MP_CRYPTO_ROM_LIB \
 		STM32MP_DDR_DUAL_AXI_PORT \
 		STM32MP_DDR_FIP_IO_STORAGE \
@@ -223,6 +254,7 @@ $(eval $(call add_defines,\
 		STM32MP_LPDDR4_TYPE \
 		STM32MP_M33_TDCID \
 		STM32MP_USE_EXTERNAL_HEAP \
+		STM32MP_SIP_CA33SS_CLK \
 		STM32MP21 \
 		STM32MP23 \
 		STM32MP25 \
@@ -355,10 +387,15 @@ BL31_SOURCES			+=	plat/st/stm32mp2/bl31_plat_setup.c			\
 					plat/st/stm32mp2/stm32mp2_topology.c
 
 ifeq ($(filter 1,${STM32MP_UART_PROGRAMMER} ${STM32MP_USB_PROGRAMMER}),)
-BL31_SOURCES			+=	plat/st/stm32mp2/stm32mp2_pm.c
+BL31_SOURCES			+=	plat/st/stm32mp2/stm32mp2_pm.c				\
+					common/tf_crc32.c
+
+BL31_CPPFLAGS += -march=armv8-a+crc
 endif
 
+ifeq ($(STM32MP_M33_TDCID),0)
 BL31_SOURCES			+=	drivers/st/ddr/stm32mp2_ddr_helpers.c
+endif
 
 # Generic GIC v2
 include drivers/arm/gic/v2/gicv2.mk
@@ -373,6 +410,14 @@ BL31_SOURCES			+=	plat/st/common/stm32mp_svc_setup.c			\
 
 # Arm Archtecture services
 BL31_SOURCES			+=	services/arm_arch_svc/arm_arch_svc_setup.c
+
+ifeq (${STM32MP_M33_TDCID},1)
+BL31_SOURCES			+=	plat/st/stm32mp2/services/scmi_common.c
+endif
+
+ifeq (${STM32MP_SIP_CA33SS_CLK},1)
+BL31_SOURCES 			+= 	plat/st/stm32mp2/services/ca35ss_clk_svc.c
+endif
 
 # Compilation rules
 .SUFFIXES:
@@ -444,7 +489,5 @@ endif
 ${BUILD_PLAT}/fdts/%-bl31.dts: $(DT_SOURCE_PATH)/%.dts fdts/${BL31_DTSI} | ${BUILD_PLAT} fdt_dirs
 	@echo '#include "$(patsubst fdts/%,%,$<)"' > $@
 	@echo '#include "${BL31_DTSI}"' >> $@
-
-${BUILD_PLAT}/fdts/%-bl31.dtb: ${BUILD_PLAT}/fdts/%-bl31.dts
 
 include plat/st/common/common_rules.mk

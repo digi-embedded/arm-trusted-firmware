@@ -12,7 +12,6 @@
 #define PWR_CR1					U(0x00)
 #define PWR_CR2					U(0x04)
 #define PWR_CR3					U(0x08)
-#define PWR_CR4					U(0x0C)
 #define PWR_CR7					U(0x18)
 #define PWR_CR8					U(0x1C)
 #define PWR_CR9					U(0x20)

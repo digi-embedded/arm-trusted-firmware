@@ -794,6 +794,7 @@ uint32_t plat_fwu_get_boot_idx(void)
 	 * even if this function is called several times.
 	 */
 	static uint32_t boot_idx = INVALID_BOOT_IDX;
+	int err = 0;
 
 	if (boot_idx == INVALID_BOOT_IDX) {
 		const struct fwu_metadata *data = fwu_get_metadata();
@@ -803,20 +804,22 @@ uint32_t plat_fwu_get_boot_idx(void)
 
 		switch (data->bank_state[boot_idx]) {
 		case FWU_BANK_STATE_ACCEPTED:
-			stm32_set_max_fwu_trial_boot_cnt();
+			err = stm32_set_max_fwu_trial_boot_cnt();
 			break;
 		case FWU_BANK_STATE_VALID:
-			bootcount = stm32_get_and_dec_fwu_trial_boot_cnt();
-			if (bootcount == 1U) {
-				WARN("Trial FWU fails %u times\n",
-				     (FWU_MAX_TRIAL_REBOOT - 1U));
-				boot_idx = fwu_get_alternate_boot_bank();
-			} else if (bootcount == 0U) {
-				WARN("Trial backup register empty : set max boot count\n");
-				stm32_set_max_fwu_trial_boot_cnt();
-			} else {
-				VERBOSE("Trial FWU: %u\n",
-					FWU_MAX_TRIAL_REBOOT - bootcount);
+			err = stm32_get_and_dec_fwu_trial_boot_cnt(&bootcount);
+			if (err == 0) {
+				if (bootcount == 1U) {
+					WARN("Trial FWU fails %u times\n",
+					     (FWU_MAX_TRIAL_REBOOT - 1U));
+					boot_idx = fwu_get_alternate_boot_bank();
+				} else if (bootcount == 0U) {
+					WARN("Trial backup register empty : set max boot count\n");
+					err = stm32_set_max_fwu_trial_boot_cnt();
+				} else {
+					VERBOSE("Trial FWU: %u\n",
+						FWU_MAX_TRIAL_REBOOT - bootcount);
+				}
 			}
 			break;
 		case FWU_BANK_STATE_INVALID:
@@ -824,8 +827,14 @@ uint32_t plat_fwu_get_boot_idx(void)
 			ERROR("The active bank(%u) of the platform is in Invalid State.\n",
 			      boot_idx);
 			boot_idx = fwu_get_alternate_boot_bank();
-			stm32_clear_fwu_trial_boot_cnt();
+			err = stm32_clear_fwu_trial_boot_cnt();
 			break;
+		}
+
+		if (err != 0) {
+			ERROR("%s: Bkp register access failed. Bank state: %d\n",
+				__func__, data->bank_state[boot_idx]);
+			panic();
 		}
 	}
 
