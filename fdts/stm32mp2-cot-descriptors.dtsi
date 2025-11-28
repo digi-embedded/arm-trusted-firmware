@@ -170,11 +170,13 @@ cot {
 			hash = <&nt_world_bl_hash>;
 		};
 
+#if STM32MP_DDR_FIP_IO_STORAGE
 		ddr_fw {
 			image-id = <DDR_FW_ID>;
 			parent = <&stm32mp_cfg_cert>;
 			hash = <&ddr_fw_hash>;
 		};
+#endif
 	};
 };
 

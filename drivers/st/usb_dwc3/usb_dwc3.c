@@ -940,12 +940,24 @@ static enum usb_status dwc3_ep_stop_xfer(dwc3_handle_t *dwc3_handle, struct usbd
 	return ret;
 }
 
+static enum usb_status dwc3_ep_set_stall(dwc3_handle_t *dwc3_handle,
+					 const usb_dwc3_endpoint_t *dwc3_ep)
+{
+	dwc3_epcmd_params_t params;
+
+	(void)memset(&params, 0x00, sizeof(params));
+
+	return dwc3_execute_dep_cmd(dwc3_handle, dwc3_ep->phy_epnum, USB_DWC3_DEPCMD_SETSTALL,
+				    &params);
+}
+
 static enum usb_status usb_dwc3_stop_device(void *handle)
 {
 	dwc3_handle_t *dwc3_handle = (dwc3_handle_t *)handle;
 	uint64_t timeout;
 	uint8_t i;
 	uint32_t evtcnt;
+	enum usb_status ret;
 
 	/*
 	 * Stop transfers for all(USB_DWC3_NUM_IN_EPS) EP
@@ -958,6 +970,12 @@ static enum usb_status usb_dwc3_stop_device(void *handle)
 	/* Stop transfers for all EP except EP0OUT k = USB_DWC3_NUM_OUT_EP */
 	for (i = 0; i < USB_DWC3_NUM_OUT_EP; i++) {
 		dwc3_ep_stop_xfer(dwc3_handle, &dwc3_handle->pcd_handle->out_ep[i]);
+	}
+
+	/* Issue SetStall on EP0 to reset Ctrl-EP state machine */
+	ret = dwc3_ep_set_stall(dwc3_handle, &dwc3_handle->OUT_ep[0]);
+	if (ret != USBD_OK) {
+		ERROR("%s: EP0 stall failed %u\n", __func__, ret);
 	}
 
 	/*
@@ -1016,16 +1034,6 @@ static enum usb_status usb_dwc3_set_address(void *handle, uint8_t address)
 static enum usb_status usb_dwc3_ep0_start_xfer(void *handle, struct usbd_ep *ep)
 {
 	return usb_dwc3_ep_start_xfer(handle, ep);
-}
-
-static enum usb_status dwc3_ep_set_stall(dwc3_handle_t *dwc3_handle, usb_dwc3_endpoint_t *dwc3_ep)
-{
-	dwc3_epcmd_params_t params;
-
-	(void)memset(&params, 0x00, sizeof(params));
-
-	return dwc3_execute_dep_cmd(dwc3_handle, dwc3_ep->phy_epnum, USB_DWC3_DEPCMD_SETSTALL,
-				    &params);
 }
 
 static enum usb_status usb_dwc3_ep_set_stall(void *handle, struct usbd_ep *ep)

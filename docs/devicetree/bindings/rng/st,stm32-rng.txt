@@ -13,6 +13,13 @@ Required properties:
 Optional properties:
 - resets : The reset to properly start RNG
 - clock-error-detect : Enable the clock detection management
+- st,rng-cfg: The configuration bitfields to initialize the RNG. They must
+  be listed in the numerical order. If not specified, the default hard-coded
+  values will be used. Number of values depends on the presence of
+  st,rng-nist-custom property.
+- st,rng-cfg-nist-custom: Enable custom values for NIST compliant RNG.
+- st,rng-htcfg: The values to configure health tests. If not specified, the
+  default hard-coded values will be used.
 
 Example:
 

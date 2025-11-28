@@ -1,11 +1,16 @@
 #
-# Copyright (c) 2014-2024, Arm Limited and Contributors. All rights reserved.
+# Copyright (c) 2014-2025, Arm Limited and Contributors. All rights reserved.
 # Copyright (c) 2020-2022, NVIDIA Corporation. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
 include ${MAKE_HELPERS_DIRECTORY}$/build_macros.mk
+
+# Flag to disable Hardware page aggregation(HPA).
+# This flag is enabled by default.
+WORKAROUND_CVE_2024_5660		?=1
+CPU_FLAG_LIST += WORKAROUND_CVE_2024_5660
 
 # Cortex A57 specific optimisation to skip L1 cache flush when
 # cluster is powered down.
@@ -32,6 +37,8 @@ CPU_FLAG_LIST += WORKAROUND_CVE_2018_3639
 CPU_FLAG_LIST += DYNAMIC_WORKAROUND_CVE_2018_3639
 WORKAROUND_CVE_2022_23960		?=1
 CPU_FLAG_LIST += WORKAROUND_CVE_2022_23960
+WORKAROUND_CVE_2024_7881		?=1
+CPU_FLAG_LIST += WORKAROUND_CVE_2024_7881
 
 # Flags to indicate internal or external Last level cache
 # By default internal
@@ -556,6 +563,11 @@ CPU_FLAG_LIST += ERRATA_V1_2743233
 # still open.
 CPU_FLAG_LIST += ERRATA_V1_2779461
 
+# Flag to apply erratum 3701767 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1 and r0p2 of
+# the Neoverse V3 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_V3_3701767
+
 # Flag to apply erratum 1987031 workaround during reset. This erratum applies
 # to revisions r0p0, r1p0 and r2p0 of the Cortex-A710 cpu and is still open.
 CPU_FLAG_LIST += ERRATA_A710_1987031
@@ -633,6 +645,11 @@ CPU_FLAG_LIST += ERRATA_A710_2768515
 # to revisions r0p0, r1p0, r2p0, r2p1 of the Cortex-A710 cpu and is still
 # open.
 CPU_FLAG_LIST += ERRATA_A710_2778471
+
+# Flag to apply erratum  3701772 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r1p0, r2p0, r2p1
+# of the Cortex-A710 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_A710_3701772
 
 # Flag to apply erratum 2002655 workaround during reset. This erratum applies
 # to revisions r0p0 of the Neoverse-N2 cpu and is fixed in r0p1.
@@ -715,6 +732,16 @@ CPU_FLAG_LIST += ERRATA_N2_2743089
 # to r0p0, r0p1, r0p2 of the Neoverse N2 cpu, it is fixed in r0p3.
 CPU_FLAG_LIST += ERRATA_N2_2779511
 
+# Flag to apply erratum 3701773 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1, r0p2 and r0p3
+# of the Neoverse N2 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_N2_3701773
+
+# Flag to apply erratum 3699563 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revision r0p0 of the Neoverse N3
+# cpu and is still open.
+CPU_FLAG_LIST += ERRATA_N3_3699563
+
 # Flag to apply erratum 2002765 workaround during reset. This erratum applies
 # to revisions r0p0, r1p0, and r2p0 of the Cortex-X2 cpu and is still open.
 CPU_FLAG_LIST += ERRATA_X2_2002765
@@ -773,6 +800,11 @@ CPU_FLAG_LIST += ERRATA_X2_2768515
 # to revisions r0p0, r1p0, r2p0, r2p1 of the Cortex-X2 cpu and it is still open.
 CPU_FLAG_LIST += ERRATA_X2_2778471
 
+# Flag to apply erratum 3701772 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r1p0, r2p0 and r2p1
+# of the Cortex-X2 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_X2_3701772
+
 # Flag to apply erratum 2070301 workaround on reset. This erratum applies
 # to revisions r0p0, r1p0, r1p1 and r1p2 of the Cortex-X3 cpu and is
 # still open.
@@ -814,6 +846,11 @@ CPU_FLAG_LIST += ERRATA_X3_2742421
 # to revisions r0p0, r1p0 and r1p1 of the Cortex-X3 cpu, it is fixed in r1p2.
 CPU_FLAG_LIST += ERRATA_X3_2743088
 
+# Flag to apply erratum 3701769 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r1p0, r1p1 and r1p2
+# of the Cortex-X3 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_X3_3701769
+
 # Flag to apply erratum 2779509 workaround on reset. This erratum applies
 # to revisions r0p0, r1p0, r1p1 of the Cortex-X3 cpu, it is fixed in r1p2.
 CPU_FLAG_LIST += ERRATA_X3_2779509
@@ -823,6 +860,10 @@ CPU_FLAG_LIST += ERRATA_X3_2779509
 # cpu and is fixed in r0p1.
 CPU_FLAG_LIST += ERRATA_X4_2701112
 
+# Flag to apply erratum 2726228 workaround during warmboot. This erratum
+# applies to all revisions <= r0p1 of the Cortex-X4 cpu, it is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_X4_2726228
+
 # Flag to apply erratum 2740089 workaround during powerdown. This erratum
 # applies to all revisions <= r0p1 of the Cortex-X4 cpu, it is fixed in r0p2.
 CPU_FLAG_LIST += ERRATA_X4_2740089
@@ -830,6 +871,32 @@ CPU_FLAG_LIST += ERRATA_X4_2740089
 # Flag to apply erratum 2763018 workaround on reset. This erratum applies
 # to revisions r0p0 and r0p1 of the Cortex-X4 cpu. It is fixed in r0p2.
 CPU_FLAG_LIST += ERRATA_X4_2763018
+
+# Flag to apply erratum 2816013 workaround on reset. This erratum applies
+# to revisions r0p0 and r0p1 of the Cortex-X4 cpu. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_X4_2816013
+
+# Flag to apply erratum 2897503 workaround on reset. This erratum applies
+# to revisions r0p0 and r0p1 of the Cortex-X4 cpu. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_X4_2897503
+
+# Flag to apply erratum 2923985 workaround on reset. This erratum applies
+# to revisions r0p0 and r0p1 of the Cortex-X4 cpu. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_X4_2923985
+
+# Flag to apply erratum 3076789 workaround on reset. This erratum applies
+# to revisions r0p0 and r0p1 of the Cortex-X4 cpu. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_X4_3076789
+
+# Flag to apply erratum 3701758 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1, r0p2 and r0p3
+# of the Cortex-X4 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_X4_3701758
+
+# Flag to apply erratum 3701747 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1 of the
+# Cortex-X925 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_X925_3701747
 
 # Flag to apply erratum 1922240 workaround during reset. This erratum applies
 # to revision r0p0 of the Cortex-A510 cpu and is fixed in r0p1.
@@ -892,6 +959,10 @@ CPU_FLAG_LIST += ERRATA_A520_2630792
 # applies to revision r0p0 and r0p1 of the Cortex-A520 cpu and is still open.
 CPU_FLAG_LIST += ERRATA_A520_2858100
 
+# Flag to apply erratum 2938996 workaround during reset. This erratum
+# applies to revision r0p0 and r0p1 of the Cortex-A520 cpu and is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_A520_2938996
+
 # Flag to apply erratum 2331132 workaround during reset. This erratum applies
 # to revisions r0p0, r0p1 and r0p2. It is still open.
 CPU_FLAG_LIST += ERRATA_V2_2331132
@@ -952,6 +1023,19 @@ CPU_FLAG_LIST += ERRATA_A715_2561034
 # only to revision r0p0, r1p0 and r1p1. It is fixed in r1p2.
 CPU_FLAG_LIST += ERRATA_A715_2728106
 
+# Flag to apply erratum 3699560 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r1p0, r1p2, r1p3
+# of the Cortex-A715 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_A715_3699560
+
+# Flag to apply erratum 2792132 workaround during reset. This erratum applies
+# to revisions r0p0 and r0p1. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_A720_2792132
+
+# Flag to apply erratum 2844092 workaround during reset. This erratum applies
+# to revisions r0p0 and r0p1. It is fixed in r0p2.
+CPU_FLAG_LIST += ERRATA_A720_2844092
+
 # Flag to apply erratum 2926083 workaround during reset. This erratum applies
 # to revisions r0p0 and r0p1. It is fixed in r0p2.
 CPU_FLAG_LIST += ERRATA_A720_2926083
@@ -960,12 +1044,22 @@ CPU_FLAG_LIST += ERRATA_A720_2926083
 # to revisions r0p0 and r0p1. It is fixed in r0p2.
 CPU_FLAG_LIST += ERRATA_A720_2940794
 
+# Flag to apply erratum 3699561 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1, r0p2 of
+# the Cortex-A720 cpu and is still open.
+CPU_FLAG_LIST += ERRATA_A720_3699561
+
+# Flag to apply erratum 3699564 workaround during context save/restore of
+# ICH_VMCR_EL2 reg. This erratum applies to revisions r0p0, r0p1 of
+# the Cortex-A725 cpu and is fixed in r0p2
+CPU_FLAG_LIST += ERRATA_A725_3699564
+
 # Flag to apply DSU erratum 798953. This erratum applies to DSUs revision r0p0.
 # Applying the workaround results in higher DSU power consumption on idle.
 CPU_FLAG_LIST += ERRATA_DSU_798953
 
 # Flag to apply DSU erratum 936184. This erratum applies to DSUs containing
-# the ACP interface and revision < r2p0. Applying the workaround results in
+# the ACP interface and revision < r0p0. Applying the workaround results in
 # higher DSU power consumption on idle.
 CPU_FLAG_LIST += ERRATA_DSU_936184
 

@@ -14,17 +14,24 @@
 struct otp_mirror {
 	uint32_t magic;
 	uint32_t state;
-	uint32_t value[OTP_MAX_SIZE];
-	uint32_t status[OTP_MAX_SIZE];
+	struct {
+		uint32_t value;
+		uint32_t status;
+	} otp[OTP_MAX_SIZE];
 };
 
 uint32_t otp_mirror_read(uint32_t *val, uint32_t otp)
 {
 	struct otp_mirror *mirror = (struct otp_mirror *)SRAM1_BASE;
 
+	/* Upper OTPs are not mirrored */
+	if (otp >= STM32MP2_UPPER_OTP_START) {
+		return BSEC_NOT_SUPPORTED;
+	}
+
 	/* OTP already mirrored */
 	if ((mirror->magic == OTP_MIRROR_MAGIC) && (mirror->state != BSEC_STATE_INVALID)) {
-		*val = mirror->value[otp];
+		*val = mirror->otp[otp].value;
 
 		return BSEC_OK;
 	}

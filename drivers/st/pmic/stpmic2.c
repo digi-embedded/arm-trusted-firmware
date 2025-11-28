@@ -263,10 +263,6 @@ int stpmic2_regulator_levels_mv(struct pmic_handle_s *pmic,
 {
 	const struct regul_struct *regul = &regul_table[id];
 
-	if (regul == NULL) {
-		return RET_ERROR_BAD_PARAMETERS;
-	}
-
 	if (levels_count != NULL) {
 		*levels_count = regul->volt_table_size;
 	}

@@ -17,14 +17,6 @@
 #include <platform_def.h>
 #include <stm32mp2_context.h>
 
-#if STM32MP_DDR_FIP_IO_STORAGE && defined(IMAGE_BL2)
-/* Map the whole SRAM1 as secure, required to load DDR FW from FIP */
-#define SRAM1_MAP_SIZE	SRAM1_SIZE_FOR_TFA
-#else
-/* Map the beginning of SRAM1 as secure */
-#define SRAM1_MAP_SIZE	STM32MP_SEC_SRAM1_SIZE
-#endif
-
 #define MAP_SYSRAM	MAP_REGION_FLAT(STM32MP_SYSRAM_BASE, \
 					STM32MP_SYSRAM_SIZE, \
 					MT_MEMORY | \
@@ -58,12 +50,31 @@
 					MT_EXECUTE_NEVER)
 #endif /* STM32MP_USB_PROGRAMMER && !STM32MP21 */
 
+#if STM32MP_DDR_FIP_IO_STORAGE && defined(IMAGE_BL2)
+/* Map the whole SRAM1 allocated to TF-A as secure, required to load DDR FW from FIP */
 #define MAP_SRAM1	MAP_REGION_FLAT(SRAM1_BASE, \
-					SRAM1_MAP_SIZE, \
+					SRAM1_SIZE_FOR_TFA, \
 					MT_MEMORY | \
 					MT_RW | \
 					MT_SECURE | \
 					MT_EXECUTE_NEVER)
+#endif
+
+#if STM32MP_M33_TDCID
+#define MAP_BSEC_MIRROR	MAP_REGION_FLAT(STM32MP_BSEC_MIRROR_BASE, \
+					STM32MP_BSEC_MIRROR_SIZE, \
+					MT_RO_DATA | MT_NS)
+#define MAP_SCMI_SEC_SHMEM	MAP_REGION_FLAT(STM32MP_SCMI_SEC_SHMEM_BASE, \
+						STM32MP_SCMI_SEC_SHMEM_SIZE, \
+						MT_DEVICE | \
+						MT_RW | \
+						MT_SECURE | \
+						MT_EXECUTE_NEVER)
+#else
+#define MAP_BSEC_MIRROR	MAP_REGION_FLAT(STM32MP_BSEC_MIRROR_BASE, \
+					STM32MP_BSEC_MIRROR_SIZE, \
+					MT_RO_DATA | MT_SECURE)
+#endif
 
 #define MAP_DEVICE	MAP_REGION_FLAT(STM32MP_DEVICE_BASE, \
 					STM32MP_DEVICE_SIZE, \
@@ -80,7 +91,11 @@ static const mmap_region_t stm32mp2_mmap[] = {
 #else /* !STM32MP_USB_PROGRAMMER || STM32MP21 */
 	MAP_SYSRAM,
 #endif /* STM32MP_USB_PROGRAMMER && !STM32MP21 */
+#if STM32MP_DDR_FIP_IO_STORAGE
 	MAP_SRAM1,
+#else
+	MAP_BSEC_MIRROR,
+#endif
 	MAP_DEVICE,
 	{0}
 };
@@ -88,7 +103,10 @@ static const mmap_region_t stm32mp2_mmap[] = {
 #if defined(IMAGE_BL31)
 static const mmap_region_t stm32mp2_mmap[] = {
 	MAP_SEC_SYSRAM,
-	MAP_SRAM1,
+	MAP_BSEC_MIRROR,
+#if STM32MP_M33_TDCID
+	MAP_SCMI_SEC_SHMEM,
+#endif /* STM32MP_M33_TDCID */
 	MAP_DEVICE,
 	{0}
 };
@@ -215,7 +233,7 @@ uint32_t stm32mp_get_chip_dev_id(void)
 	return stm32mp_syscfg_get_chip_dev_id();
 }
 
-static uint32_t get_part_number(void)
+uint32_t stm32mp_get_part_number(void)
 {
 	static uint32_t part_number;
 
@@ -248,7 +266,7 @@ void stm32mp_get_soc_name(char name[STM32_SOC_NAME_SIZE])
 	char *cpu_s, *cpu_r, *pkg;
 
 	/* MPUs Part Numbers */
-	switch (get_part_number()) {
+	switch (stm32mp_get_part_number()) {
 #if STM32MP21
 	case STM32MP211A_PART_NB:
 		cpu_s = "211A";
@@ -487,7 +505,7 @@ bool stm32mp_is_single_core(void)
 #else /* STM32MP21 */
 	bool single_core = false;
 
-	switch (get_part_number()) {
+	switch (stm32mp_get_part_number()) {
 #if STM32MP23
 	case STM32MP231A_PART_NB:
 	case STM32MP231C_PART_NB:
@@ -532,7 +550,7 @@ uint32_t stm32mp_check_closed_device(void)
 		panic();
 	}
 
-	if (!stm32_otp_is_closed_device() ||
+	if (!stm32_is_bsec_closed() ||
 	    ((otp_val & SECURE_BOOT_CLOSED_SECURE) == 0U)) {
 		status = STM32MP_CHIP_SEC_OPEN;
 	}
@@ -545,7 +563,7 @@ bool stm32mp_is_auth_supported(void)
 {
 	bool supported = false;
 
-	switch (get_part_number()) {
+	switch (stm32mp_get_part_number()) {
 #if STM32MP21
 	case STM32MP211C_PART_NB:
 	case STM32MP211F_PART_NB:
@@ -636,6 +654,10 @@ bool stm32mp_is_wakeup_from_standby(void)
 		rstsr = mmio_read_32(stm32mp_rcc_base() + RCC_C1BOOTRSTSCLRR);
 
 		if ((rstsr & RCC_C1BOOTRSTSCLRR_PADRSTF) != 0U) {
+			return false;
+		}
+		/* CPU1=CA35 reset performed by CPU2=M33 */
+		if ((rstsr & RCC_C1BOOTRSTSCLRR_STBYC1RSTF) == 0U) {
 			return false;
 		}
 		if (stm32_pm_context_is_valid()) {

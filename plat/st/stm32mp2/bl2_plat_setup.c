@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2023-2025, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -53,12 +53,15 @@ IMPORT_SYM(uintptr_t, __DATA_END__, DATA_END);
 #define IAC_EXCEPT_LSB_BIT(x) ((x) * 32U)
 #define IAC_EXCEPT_MSB_BIT(x) (IAC_EXCEPT_LSB_BIT(x) + 31U)
 
+#if DEBUG && !STM32MP_M33_TDCID
+/* Save all IAC ISR registers + the number of IAC found on last u32 */
+static uint32_t iac_list[IAC_NB + 1U];
+#endif
+
 static void iac_dump(void)
 {
-#if !STM32MP_M33_TDCID
-#if DEBUG
-	unsigned int i;
-	unsigned int bit;
+#if DEBUG && !STM32MP_M33_TDCID
+	uint32_t i;
 
 	for (i = 0U; i < IAC_NB; i++) {
 		uint32_t isr = mmio_read_32(IAC_BASE + IAC_ISR(i));
@@ -68,6 +71,25 @@ static void iac_dump(void)
 		if (isr == 0U) {
 			continue;
 		}
+
+		iac_list[i] = isr;
+		iac_list[IAC_NB]++;
+	}
+#endif
+}
+
+static void iac_display(void)
+{
+#if DEBUG && !STM32MP_M33_TDCID
+	unsigned int i;
+	unsigned int bit;
+
+	if (iac_list[IAC_NB] == 0U) {
+		return;
+	}
+
+	for (i = 0U; i < IAC_NB; i++) {
+		uint32_t isr = iac_list[i];
 
 		WARN("IAC exceptions pending [%u:%u] = %x\n",
 		     IAC_EXCEPT_MSB_BIT(i), IAC_EXCEPT_LSB_BIT(i), isr);
@@ -81,8 +103,18 @@ static void iac_dump(void)
 		}
 	}
 #endif
-#endif
 }
+
+#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
+static void clean_iac(void)
+{
+	uint32_t i;
+
+	for (i = 0U; i < IAC_NB; i++) {
+		mmio_write_32((IAC_BASE + IAC_ICR(i)), (uint32_t)~0U);
+	}
+}
+#endif
 
 static void print_reset_reason(void)
 {
@@ -129,12 +161,49 @@ static void print_reset_reason(void)
 	INFO("Reset reason: %s (0x%x)\n", reason_str, rstsr);
 }
 
+#if STM32MP_M33_TDCID
+/*
+ * notify_cpu2 sends an event (SEV) to CPU2 to notify it that BL2 has
+ * finished its execution and doesn't need the RIF boot configuration
+ * anymore and wait clear of pending bit to acknowledge the trasaction.
+ */
+static void notify_cpu2(void)
+{
+	/* clear CPU2 SEV event to cpu1 (exti 64)*/
+	mmio_write_32(STM32MP_EXTI1_BASE + EXTI1_RPR3, EXTI1_C2SEV);
+
+	/* Send CPU1 SEV event to cpu2 (exti 65)*/
+	mmio_write_32(STM32MP_EXTI1_BASE + EXTI1_SWIER3, EXTI1_C1SEV);
+
+	for ( ; ; ) {
+		if ((mmio_read_32(STM32MP_EXTI1_BASE + EXTI1_RPR3) & EXTI1_C1SEV) == 0U) {
+			break;
+		}
+	}
+}
+#endif
+
 void bl2_el3_early_platform_setup(u_register_t arg0 __unused,
 				  u_register_t arg1 __unused,
 				  u_register_t arg2 __unused,
 				  u_register_t arg3 __unused)
 {
 	stm32mp_setup_early_console();
+
+#if STM32MP_M33_TDCID
+	/* Synchronisation point between TF-A and TF-M */
+	notify_cpu2();
+#endif
+
+	iac_dump();
+
+#if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
+	/*
+	 * fixup: clean IAC that may be caused by bootrom. They are
+	 * irrelevant in programmer mode.
+	 */
+	clean_iac();
+#endif
 
 	stm32mp_save_boot_ctx_address(BOOT_CTX_ADDR);
 
@@ -171,6 +240,7 @@ void bl2_platform_setup(void)
 #endif
 }
 
+#if !STM32MP_M33_TDCID
 static void handle_potential_tamper(uint32_t bit_off)
 {
 	/* Fixme: Add implementation specific logic here */
@@ -185,8 +255,26 @@ static void handle_confirmed_tamper(uint32_t bit_off __unused)
 	panic();
 }
 
+static bool tamper_is_accesssible(void)
+{
+	uint32_t r0cidcfgr = mmio_read_32(TAMP_BASE + TAMP_R0CIDCFGR);
+
+	return !(((r0cidcfgr & TAMP_R0CIDCFGR_CFEN) == TAMP_R0CIDCFGR_CFEN) &&
+		 ((r0cidcfgr & TAMP_R0CIDCFGR_CID) != TAMP_R0CIDCFGR_CID1));
+}
+
 static bool lse_tamper_detection(void)
 {
+	/*
+	 * In case the backup domain hasn't been reset on warm boot cases, the
+	 * TAMP RIF configuration is maintained.
+	 * Therefore, TAMP_SR may not be accessible. In this case skip tamper
+	 * detection.
+	 */
+	if (!tamper_is_accesssible()) {
+		return false;
+	}
+
 	if ((mmio_read_32(TAMP_BASE + TAMP_SR) & TAMP_SR_LSE_MONITORING) != 0U) {
 		mmio_clrbits_32(RCC_BASE + RCC_BDCR, RCC_BDCR_LSECSSON);
 		mmio_clrbits_32(RCC_BASE + RCC_BDCR, RCC_BDCR_LSEON);
@@ -202,7 +290,6 @@ static bool lse_tamper_detection(void)
 
 static void reset_backup_domain(void)
 {
-#if !STM32MP_M33_TDCID
 	uintptr_t pwr_base = stm32mp_pwr_base();
 	uintptr_t rcc_base = stm32mp_rcc_base();
 
@@ -235,13 +322,26 @@ static void reset_backup_domain(void)
 
 		mmio_clrbits_32(rcc_base + RCC_BDCR, RCC_BDCR_VSWRST);
 	}
-#endif
 }
+#endif /* !STM32MP_M33_TDCID */
 
 static void check_tamper_event(bool lse_tamper_occured)
 {
-	uint32_t sr = mmio_read_32(TAMP_BASE + TAMP_SR);
+#if !STM32MP_M33_TDCID
+	uint32_t sr;
 
+	/*
+	 * In case the backup domain hasn't been reset on warm boot cases, the
+	 * TAMP RIF configuration is maintained.
+	 * Therefore, TAMP_SR may not be accessible. In this case skip tamper
+	 * detection.
+	 */
+	if (!tamper_is_accesssible()) {
+		INFO("TAMP IP not accessible, skip tamper verification\n");
+		return;
+	}
+
+	sr = mmio_read_32(TAMP_BASE + TAMP_SR);
 	if (sr == 0U) {
 		return;
 	}
@@ -250,8 +350,6 @@ static void check_tamper_event(bool lse_tamper_occured)
 	if (lse_tamper_occured) {
 		ERROR("** INTRUSION ALERT: LSE MONITORING TAMPER DETECTED **\n");
 		ERROR("\n");
-
-#if !STM32MP_M33_TDCID
 		/*
 		 * Fixme: Add logic to handle the LSE tamper here (e.g change RTC clock source
 		 * instead). This part is implementation specific.
@@ -259,7 +357,6 @@ static void check_tamper_event(bool lse_tamper_occured)
 		mmio_clrbits_32(RCC_BASE + RCC_BDCR, RCC_BDCR_RTCCKEN);
 		ERROR("** Rebooting... **\n");
 		stm32mp_system_reset();
-#endif
 	} else {
 		while (sr != 0U) {
 			unsigned int bit_off = __builtin_ctz(sr);
@@ -282,6 +379,7 @@ static void check_tamper_event(bool lse_tamper_occured)
 		}
 		ERROR("\n");
 	}
+#endif
 }
 
 static void authentication_check(boot_api_context_t *boot_context)
@@ -317,7 +415,6 @@ end:
 #endif /* TRUSTED_BOARD_BOOT && !STM32MP21 */
 }
 
-
 void bl2_el3_plat_arch_setup(void)
 {
 	const char *board_model;
@@ -343,11 +440,11 @@ void bl2_el3_plat_arch_setup(void)
 		panic();
 	}
 
+#if !STM32MP_M33_TDCID
 	lse_tamper_occured = lse_tamper_detection();
 
 	reset_backup_domain();
 
-#if !STM32MP_M33_TDCID
 	/*
 	 * Initialize DDR sub-system clock. This needs to be done before enabling DDR PLL (PLL2),
 	 * and so before stm32mp2_clk_init().
@@ -391,7 +488,19 @@ void bl2_el3_plat_arch_setup(void)
 
 	stm32_iwdg_refresh();
 
-	stm32_save_boot_info(boot_context);
+#if STM32MP_M33_TDCID
+	/*
+	 * boot interface instance must be forced to 2 in case of eMMC
+	 * single boot device to avoid a ROM issue when M33 is TDCID.
+	 */
+	if (boot_context->boot_interface_selected == BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_EMMC) {
+		boot_context->boot_interface_instance = 2U;
+	}
+#endif
+
+	if (stm32_save_boot_info(boot_context) != 0) {
+		panic();
+	}
 
 	/* Masking potential tamper during BL2 */
 	stm32mp_syscfg_mask_potential_tamper_enable();
@@ -400,7 +509,7 @@ void bl2_el3_plat_arch_setup(void)
 		goto skip_console_init;
 	}
 
-	iac_dump();
+	iac_display();
 
 	stm32mp_print_cpuinfo();
 
@@ -426,17 +535,11 @@ skip_console_init:
 	}
 #endif
 
-	if (stm32_rifsc_check_peripheral_access() != 0) {
-		panic();
-	}
-
-	if (stm32_rifsc_semaphore_init() != 0) {
-		panic();
-	}
-
+#if !STM32MP_M33_TDCID
 	if (stm32_rng_init() != 0) {
 		panic();
 	}
+#endif
 
 	if (fixed_regulator_register() != 0) {
 		panic();
@@ -705,7 +808,10 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 
 	case BL33_IMAGE_ID:
 #if PSA_FWU_SUPPORT
-		stm32_fwu_set_boot_idx();
+		err = stm32_fwu_set_boot_idx();
+		if (err != 0) {
+			panic();
+		}
 #endif /* PSA_FWU_SUPPORT */
 		break;
 
@@ -719,9 +825,6 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 
 void bl2_el3_plat_prepare_exit(void)
 {
-	if (stm32_rifsc_semaphore_exit() != 0) {
-		panic();
-	}
 	flush_dcache_range(BSS_START, BSS_END - BSS_START);
 	flush_dcache_range(DATA_START, DATA_END - DATA_START);
 
@@ -729,4 +832,7 @@ void bl2_el3_plat_prepare_exit(void)
 
 	/* Unmask potential tamper before exit */
 	stm32mp_syscfg_mask_potential_tamper_disable();
+
+	/* Increment hide protection level */
+	bsec_increment_hdpl();
 }

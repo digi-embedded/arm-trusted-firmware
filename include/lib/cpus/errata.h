@@ -1,14 +1,13 @@
 /*
- * Copyright (c) 2017-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2025, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef ERRATA_REPORT_H
-#define ERRATA_REPORT_H
+#ifndef ERRATA_H
+#define ERRATA_H
 
 #include <lib/cpus/cpu_ops.h>
-
 
 #define ERRATUM_WA_FUNC_SIZE	CPU_WORD_SIZE
 #define ERRATUM_CHECK_FUNC_SIZE	CPU_WORD_SIZE
@@ -24,6 +23,11 @@
 #define ERRATUM_CHOSEN		ERRATUM_CVE + ERRATUM_CVE_SIZE
 #define ERRATUM_MITIGATED	ERRATUM_CHOSEN + ERRATUM_CHOSEN_SIZE
 #define ERRATUM_ENTRY_SIZE	ERRATUM_MITIGATED + ERRATUM_MITIGATED_SIZE
+
+/* Errata status */
+#define ERRATA_NOT_APPLIES	0
+#define ERRATA_APPLIES		1
+#define ERRATA_MISSING		2
 
 #ifndef __ASSEMBLER__
 #include <lib/cassert.h>
@@ -49,6 +53,26 @@ struct erratum_entry {
 
 CASSERT(sizeof(struct erratum_entry) == ERRATUM_ENTRY_SIZE,
 	assert_erratum_entry_asm_c_different_sizes);
+
+/*
+ * Runtime errata helpers.
+ */
+#if ERRATA_A75_764081
+bool errata_a75_764081_applies(void);
+#else
+static inline bool errata_a75_764081_applies(void)
+{
+       return false;
+}
+#endif
+
+#if ERRATA_A520_2938996 || ERRATA_X4_2726228
+unsigned int check_if_affected_core(void);
+#endif
+
+int check_wa_cve_2024_7881(void);
+bool errata_ich_vmcr_el2_applies(void);
+
 #else
 
 /*
@@ -74,12 +98,7 @@ CASSERT(sizeof(struct erratum_entry) == ERRATUM_ENTRY_SIZE,
 
 #endif /* __ASSEMBLER__ */
 
-/* Errata status */
-#define ERRATA_NOT_APPLIES	0
-#define ERRATA_APPLIES		1
-#define ERRATA_MISSING		2
-
 /* Macro to get CPU revision code for checking errata version compatibility. */
 #define CPU_REV(r, p)		((r << 4) | p)
 
-#endif /* ERRATA_REPORT_H */
+#endif /* ERRATA_H */

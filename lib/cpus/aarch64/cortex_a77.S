@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2024, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -25,6 +25,13 @@
 #if WORKAROUND_CVE_2022_23960
 	wa_cve_2022_23960_bhb_vector_table CORTEX_A77_BHB_LOOP_COUNT, cortex_a77
 #endif /* WORKAROUND_CVE_2022_23960 */
+
+/* Disable hardware page aggregation. Enables mitigation for `CVE-2024-5660` */
+workaround_reset_start cortex_a77, CVE(2024, 5660), WORKAROUND_CVE_2024_5660
+	sysreg_bit_set CORTEX_A77_CPUECTLR_EL1, BIT(46)
+workaround_reset_end cortex_a77, CVE(2024, 5660)
+
+check_erratum_ls cortex_a77, CVE(2024, 5660), CPU_REV(1, 1)
 
 workaround_reset_start cortex_a77, ERRATUM(1508412), ERRATA_A77_1508412
 	/* move cpu revision in again and compare against r0p0 */
@@ -161,7 +168,7 @@ func cortex_a77_core_pwr_dwn
 	sysreg_bit_set CORTEX_A77_CPUPWRCTLR_EL1, \
 		CORTEX_A77_CPUPWRCTLR_EL1_CORE_PWRDN_BIT
 
-	apply_erratum cortex_a77, ERRATUM(2743100), ERRATA_A77_2743100
+	apply_erratum cortex_a77, ERRATUM(2743100), ERRATA_A77_2743100, NO_GET_CPU_REV
 
 	isb
 	ret

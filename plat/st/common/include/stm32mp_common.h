@@ -133,6 +133,9 @@ bool stm32_gpio_is_secure_at_reset(unsigned int bank);
 /* Return node offset for target GPIO bank ID @bank or a FDT error code */
 int stm32_get_gpio_bank_pinctrl_node(void *fdt, unsigned int bank);
 
+/* Get device part number (RPN) */
+uint32_t stm32mp_get_part_number(void);
+
 /* Get the chip revision */
 uint32_t stm32mp_get_chip_version(void);
 /* Get the chip device ID */
@@ -163,9 +166,9 @@ int stm32mp_map_retram(void);
 int stm32mp_unmap_retram(void);
 
 /* Function to save boot info */
-void stm32_save_boot_info(boot_api_context_t *boot_context);
+int stm32_save_boot_info(boot_api_context_t *boot_context);
 /* Function to get boot peripheral info */
-void stm32_get_boot_interface(uint32_t *interface, uint32_t *instance);
+int stm32_get_boot_interface(uint32_t *interface, uint32_t *instance);
 
 /* Display board information from the value found in OTP fuse */
 void stm32_display_board_info(uint32_t board_id);
@@ -186,10 +189,10 @@ int stm32_get_stop2_entrypoint_cell(struct nvmem_cell *stop2_entrypoint);
 #endif
 
 #if PSA_FWU_SUPPORT
-void stm32_fwu_set_boot_idx(void);
-uint32_t stm32_get_and_dec_fwu_trial_boot_cnt(void);
-void stm32_set_max_fwu_trial_boot_cnt(void);
-void stm32_clear_fwu_trial_boot_cnt(void);
+int stm32_fwu_set_boot_idx(void);
+int stm32_get_and_dec_fwu_trial_boot_cnt(uint32_t *cnt);
+int stm32_set_max_fwu_trial_boot_cnt(void);
+int stm32_clear_fwu_trial_boot_cnt(void);
 #endif /* PSA_FWU_SUPPORT */
 
 #endif /* STM32MP_COMMON_H */

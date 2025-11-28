@@ -53,20 +53,32 @@ static int stm32_rifsc_access_check(unsigned int id)
 	/*
 	 * Peripheral used by TF-A are supposed to be secure privileged
 	 */
-	if(((sec_reg_value & BIT_32(periph_offset)) == 0U) &&
+	if (((sec_reg_value & BIT_32(periph_offset)) == 0U) &&
 	    ((priv_reg_value & BIT_32(periph_offset)) == 0U)) {
 		return -EACCES;
 	}
 
 	/*
 	 * If semaphore is enabled CID1 must be whitelisted and
-	 * semaphore free to take.
+	 * semaphore taken by CID1 or free to take.
 	 * Otherwise, static CID must be CID1.
 	 */
 	if ((cid_reg_value & _RIFSC_CIDCFGR_SEM_EN) != 0U) {
-		if (((cid_reg_value & BIT(RIF_CID1 + _RIFSC_CIDCFGR_SEML_SHIFT)) != 0U) &&
-		    ((sem_reg_value & _RIFSC_SEMCR_SEM_MUTEX) == 0U)) {
+
+		/* Check if CID1 is whitelisted */
+		if (((cid_reg_value & BIT(RIF_CID1 + _RIFSC_CIDCFGR_SEML_SHIFT)) == 0U)) {
 			return -EACCES;
+		}
+
+		/*
+		 * If the last successful acquisition of the semaphore
+		 * is not done by CID1, then the semapohre must be free
+		 * to take.
+		 */
+		if ((((sem_reg_value & _RIFSC_SEMCR_SEMCID_MASK) >>
+		      _RIFSC_SEMCR_SEMCID_SHIFT) != RIF_CID1) &&
+		    ((sem_reg_value & _RIFSC_SEMCR_SEM_MUTEX) != 0U)) {
+				return -EACCES;
 		}
 	} else {
 		if (((cid_reg_value & _RIFSC_CIDCFGR_SCID_MASK) >>

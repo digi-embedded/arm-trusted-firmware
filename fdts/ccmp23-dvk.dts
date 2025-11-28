@@ -160,7 +160,6 @@
 				regulator-name = "vpp_ddr";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
-				regulator-enable-ramp-delay = <1000>;
 			};
 			ldo6: ldo6 {
 				regulator-name = "ldo6";

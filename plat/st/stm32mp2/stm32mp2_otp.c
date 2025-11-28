@@ -36,7 +36,7 @@ uint32_t stm32_otp_read_sw_lock(uint32_t otp, bool *value)
 	return BSEC_OK;
 }
 
-bool stm32_otp_is_closed_device(void)
+bool stm32_is_bsec_closed(void)
 {
 	/*
 	 * As we cannot check BSEC status, return true here and only rely on lifecycle OTP

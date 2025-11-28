@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2017-2025, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -27,18 +27,17 @@
 #define BSEC_WRITE_LOCKED		0xFFFFFFF6U
 
 /*
- * get BSEC global state: result for bsec_get_secure_state()
+ * get BSEC global state: result for bsec_get_state()
+ * BSEC open is considered invalid in OSTL use case.
  * @state: global state
  *           [1:0] BSEC state
- *             00b: Sec Open
- *             01b: Sec Closed
- *             11b: Invalid
+ *             0b: Closed
+ *             1b: Invalid
  *           [8]: Hardware Key set = 1b
  */
-#define BSEC_STATE_SEC_OPEN		U(0x0)
-#define BSEC_STATE_SEC_CLOSED		U(0x1)
-#define BSEC_STATE_INVALID		U(0x3)
-#define BSEC_STATE_MASK			GENMASK_32(1, 0)
+#define BSEC_STATE_CLOSED		U(0x0)
+#define BSEC_STATE_INVALID		U(0x1)
+#define BSEC_STATE_MASK			BIT(0)
 
 #define BSEC_HARDWARE_KEY		BIT(8)
 
@@ -61,11 +60,7 @@ uint32_t bsec_read_sw_lock(uint32_t otp, bool *value);
 uint32_t bsec_set_sp_lock(uint32_t otp);
 uint32_t bsec_read_sp_lock(uint32_t otp, bool *value);
 
-uint32_t bsec_get_secure_state(void);
-static inline bool bsec_mode_is_closed_device(void)
-{
-	return (bsec_get_secure_state() & BSEC_STATE_MASK) == BSEC_STATE_SEC_CLOSED;
-}
+uint32_t bsec_get_state(void);
 
 #if defined(IMAGE_BL32) || defined(STM32MP_SSP)
 uint32_t bsec_permanent_lock_otp(uint32_t otp);
@@ -73,5 +68,11 @@ uint32_t bsec_permanent_lock_otp(uint32_t otp);
 #if defined(IMAGE_BL32)
 uint32_t bsec_check_nsec_access_rights(uint32_t otp);
 #endif
+
+#if defined(STM32MP21) && STM32MP21 && !(defined(STM32MP_M33_TDCID) && STM32MP_M33_TDCID)
+void bsec_increment_hdpl(void);
+#else
+static inline void bsec_increment_hdpl(void) {}
+#endif /* STM32MP21 */
 
 #endif /* BSEC_H */

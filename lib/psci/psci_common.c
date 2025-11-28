@@ -828,6 +828,7 @@ static int psci_get_ns_ep_info(entry_point_info_t *ep,
 	u_register_t ep_attr, sctlr;
 	unsigned int daif, ee, mode;
 	u_register_t ns_scr_el3 = read_scr_el3();
+	u_register_t ns_esr_el3 = read_esr_el3();
 	u_register_t ns_sctlr_el1 = read_sctlr_el1();
 
 	sctlr = ((ns_scr_el3 & SCR_HCE_BIT) != 0U) ?
@@ -847,9 +848,15 @@ static int psci_get_ns_ep_info(entry_point_info_t *ep,
 
 	/*
 	 * Figure out whether the cpu enters the non-secure address space
-	 * in aarch32 or aarch64
+	 * in aarch32 or aarch64 from ESR first, or SCR elsewhere.
 	 */
-	if ((ns_scr_el3 & SCR_RW_BIT) != 0U) {
+	if (EC_BITS(ns_esr_el3) == EC_AARCH32_SMC) {
+		mode = MODE32_svc;
+
+		daif = DAIF_ABT_BIT | DAIF_IRQ_BIT | DAIF_FIQ_BIT;
+
+		ep->spsr = SPSR_MODE32((uint64_t)mode, entrypoint & 0x1, ee, daif);
+	} else if ((ns_scr_el3 & SCR_RW_BIT) != 0U) {
 
 		/*
 		 * Check whether a Thumb entry point has been provided for an
