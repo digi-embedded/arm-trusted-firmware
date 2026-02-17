@@ -568,6 +568,9 @@ void stm32mp_syscfg_set_icn_qos(void)
 #if !STM32MP21
 	/* Disable GPU BW limiter */
 	mmio_write_32(SYSCFG_BASE + SYSCFG_ICNGPUBWLCR, U(0x00004009));
+
+	/* Reduce ICN QOS VDEC priority from 4 to 1 */
+	mmio_write_32(SYSCFG_BASE + SYSCFG_ICNQPCR2, U(0x2149865A));
 #endif /* !STM32MP21 */
 
 #if STM32MP_DDR4_TYPE || STM32MP_LPDDR4_TYPE

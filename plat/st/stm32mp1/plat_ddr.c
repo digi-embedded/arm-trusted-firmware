@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2023-2025, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -44,12 +44,6 @@ static int pmic_ddr_power_init(enum ddr_type ddr_type)
 			return status;
 		}
 
-
-		status = regulator_enable(vdd);
-		if (status != 0) {
-			return status;
-		}
-
 		vref = regulator_get_by_supply_name(fdt, node, "vref");
 		if (vref != NULL) {
 			status = regulator_enable(vref);
@@ -64,6 +58,11 @@ static int pmic_ddr_power_init(enum ddr_type ddr_type)
 			if (status != 0) {
 				return status;
 			}
+		}
+
+		status = regulator_enable(vdd);
+		if (status != 0) {
+			return status;
 		}
 		break;
 	}

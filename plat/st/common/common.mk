@@ -21,6 +21,9 @@ STM32MP_USE_EXTERNAL_HEAP	?=	0
 # Use secure library from the ROM code for authentication
 STM32MP_CRYPTO_ROM_LIB		?=	0
 
+# Flag to be activated when the coprocessor owns the security IPs
+STM32MP_CRYPTO_USE_SW		?=	0
+
 # Please don't increment this value without good understanding of
 # the monotonic counter
 STM32_TF_VERSION		?=	0
@@ -61,6 +64,12 @@ STM32_TF_A_COPIES		:=	2
 
 # PLAT_PARTITION_MAX_ENTRIES must take care of STM32_TF-A_COPIES and other partitions
 PLAT_PARTITION_MAX_ENTRIES	:=	$(shell echo $$(($(STM32_TF_A_COPIES) + $(STM32_EXTRA_PARTS))))
+
+ifneq ($(ENABLE_STACK_PROTECTOR),0)
+# Enable the stack protector. If set "to strong", this improves
+# debugging at the cost of a size increase.
+PLAT_BL_COMMON_SOURCES		+=	plat/st/common/stm32mp_stack_protector.c
+endif
 
 ifeq (${PSA_FWU_SUPPORT},1)
 # Number of banks of updatable firmware
@@ -173,6 +182,7 @@ include lib/xlat_tables_v2/xlat_tables.mk
 PLAT_BL_COMMON_SOURCES		+=	${XLAT_TABLES_LIB_SRCS}
 
 PLAT_BL_COMMON_SOURCES		+=	drivers/clk/clk.c				\
+					drivers/clk/clk-fixed.c		\
 					drivers/delay_timer/delay_timer.c		\
 					drivers/delay_timer/generic_delay_timer.c	\
 					drivers/st/clk/stm32mp_clkfunc.c		\
@@ -224,16 +234,7 @@ endif
 TF_MBEDTLS_KEY_ALG		:=	ecdsa
 KEY_SIZE			:=	256
 
-ifneq (${MBEDTLS_DIR},)
-MBEDTLS_MAJOR=$(shell grep -hP "define MBEDTLS_VERSION_MAJOR" \
-${MBEDTLS_DIR}/include/mbedtls/*.h | grep -oe '\([0-9.]*\)')
-
-ifeq (${MBEDTLS_MAJOR}, 3)
-MBEDTLS_CONFIG_FILE		?=	"<stm32mp_mbedtls_config-3.h>"
-else
-$(error Error: TF-A only supports MbedTLS versions > 3.x)
-endif
-endif
+MBEDTLS_CONFIG_FILE		?=	"<stm32mp_mbedtls_config.h>"
 
 include drivers/auth/mbedtls/mbedtls_x509.mk
 

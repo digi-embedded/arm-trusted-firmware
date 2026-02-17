@@ -18,6 +18,7 @@
 #include <drivers/generic_delay_timer.h>
 #include <drivers/st/bsec3_reg.h>
 #include <drivers/st/stm32mp_clkfunc.h>
+#include <drivers/st/stm32mp_ddr.h>
 #include <drivers/st/stm32mp_reset.h>
 #include <drivers/st/stm32mp2_ddr_helpers.h>
 #include <lib/mmio.h>
@@ -28,8 +29,14 @@
 
 #include <platform_def.h>
 #include <stm32mp2_context.h>
+#include <stm32mp2_private.h>
 
 #include "../../../lib/psci/psci_private.h"
+#include "scmi_private.h"
+
+#ifndef STM32MP_PWRDOWN_SGI
+#define STM32MP_PWRDOWN_SGI ARM_IRQ_SEC_SGI_7
+#endif
 
 #ifndef STM32MP_PWRDOWN_SGI
 #define STM32MP_PWRDOWN_SGI ARM_IRQ_SEC_SGI_7
@@ -42,22 +49,6 @@
 #define DEFAULT_LPCFG_D2	1U		/* PWR_ON=0 for Standby1/2 = PMIC_PWRCTRL1 */
 #define DEFAULT_LPLVDLY_D2	0U		/* 6xLSI cycle = 187 us */
 #define DEFAULT_LPSTOP1DLY	100U		/* LP-Stop1 PWRLP_DLY to wait VTT */
-
-/* Standardized status and control registers (SSC) access modes */
-#define A35SSC_SSC_RW			U(0x0)
-#define A35SSC_SSC_WS1			U(0x4)
-#define A35SSC_SSC_WC1			U(0x8)
-#define A35SSC_SSC_WT1			U(0xC)
-
-#define CA35SS_SSC_LPI_TSGEN_NTS(type)	(U(0x0D0) + A35SSC_SSC_ ## type)
-#define TS_CSYSREQ			BIT_32(8)
-#define TS_CSYSACK			BIT_32(9)
-
-#define CA35SS_SSC_LPI_STGEN_NTS(type)	(U(0x140) + A35SSC_SSC_ ## type)
-#define STGEN_CSYSREQ			BIT_32(24)
-#define STGEN_CSYSACK			BIT_32(25)
-
-#define CA35SS_SYSCFG_VBAR_CR	0x2084U
 
 #define RAMCFG_RETRAMCR		0x180U
 #define SRAMHWERDIS		BIT(12)
@@ -107,6 +98,8 @@ static uint32_t saved_lpsram_amen;
 #define PM_CTX_DATA	&saved_lpsram_amen
 #define PM_CTX_SIZE	sizeof(saved_lpsram_amen)
 #endif
+
+static struct nvmem_cell stop2_entrypoint_cell;
 
 /* Support PSCI v1.0 Extended State-ID with the recommended encoding */
 #define LVL_CORE		U(0)
@@ -218,52 +211,6 @@ static void stm32mp_state_set(unsigned int core_id, unsigned int state_id, bool 
 	flush_dcache_range((uintptr_t)&stm32_percpu_data[core_id], sizeof(stm32_percpu_data[0]));
 	if (spin_lock_available) {
 		spin_unlock(&stm32mp_state_lock);
-	}
-}
-
-/*
- * To guarantee a correct synchronization of the ARM counter with STGEN,
- * the ARM generic timer has to  be isolated before entering in low power
- * mode. Once this is done, the delays or timeouts function based on this
- * timer will never end.
- */
-static void stm32mp_ca35_lpi_isolate(void)
-{
-	/* Use write clear registers to clear bits */
-	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WC1), STGEN_CSYSREQ);
-
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WC1))
-		& STGEN_CSYSACK) != 0U) {
-		;
-	}
-
-	if (clk_is_enabled(CK_SYSDBG)) {
-		mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1), TS_CSYSREQ);
-
-		while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WC1))
-			& TS_CSYSACK) != 0U) {
-			;
-		}
-	}
-}
-
-static void stm32mp_ca35_lpi_restore(void)
-{
-	/* Use write set registers to set bits */
-	mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WS1), STGEN_CSYSREQ);
-
-	while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_STGEN_NTS(WS1))
-		& STGEN_CSYSACK) == 0U) {
-		;
-	}
-
-	if (clk_is_enabled(CK_SYSDBG)) {
-		mmio_write_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1), TS_CSYSREQ);
-
-		while ((mmio_read_32(A35SSC_BASE + CA35SS_SSC_LPI_TSGEN_NTS(WS1))
-			& TS_CSYSACK) == 0U) {
-			;
-		}
 	}
 }
 
@@ -538,6 +485,13 @@ static void print_mode_verbose(const char *mode)
 	VERBOSE("Entering %s low power mode\n", mode);
 }
 
+static void stm32_set_scmi_sys_pwr(uint32_t system_state)
+{
+#if STM32MP_M33_TDCID
+	scmi_sys_pwr_state_set(SCMI_SYS_PWR_FORCEFUL_REQ, system_state);
+#endif
+}
+
 static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 {
 	uintptr_t pwr_base = stm32mp_pwr_base();
@@ -548,6 +502,8 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 	bool cpu2_running = stm32_pwr_cpu2_state_is_running(pwr_base);
 	uint32_t pwr_r3cidcfgr = 0U;
 #endif
+	uintptr_t stop2_fct_ptr = (uintptr_t)&stm32_stop2_entrypoint;
+	uint32_t stop2_entrypoint = (uint32_t)(stop2_fct_ptr & UINT32_MAX);
 
 	/* If retention only at D1 level return as nothing is to be done */
 	if (stateid == PWRSTATE_RUN) {
@@ -637,6 +593,11 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 			mmio_write_32(pwr_base + PWR_CPU2CR,
 				      PWR_CPU2CR_LPDS_D2 | PWR_CPU2CR_LVDS_D2);
 		}
+
+		if (stm32_pwr_cpu3_state_is_running(pwr_base)) {
+			/* Send an IRQ to the M0+ using EXTI2 C1SEV to warn about clook switch. */
+			mmio_write_32(STM32MP_EXTI2_BASE + EXTI2_SWIER2, EXTI2_C1SEV);
+		}
 #endif
 		stm32mp2_enable_rcc_wakeup_irq(rcc_base);
 		break;
@@ -649,9 +610,12 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 			mmio_write_32(pwr_base + PWR_CPU2CR, 0U);
 		}
 #endif
+		(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&stop2_entrypoint,
+				       sizeof(stop2_entrypoint));
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
+		stm32_set_scmi_sys_pwr(SCMI_SYS_PWR_SUSPEND);
 		break;
 
 #if !STM32MP_M33_TDCID
@@ -661,6 +625,8 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 		if (!cpu2_running) {
 			mmio_write_32(pwr_base + PWR_CPU2CR, PWR_CPU2CR_LPDS_D2);
 		}
+		(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&stop2_entrypoint,
+				       sizeof(stop2_entrypoint));
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
@@ -674,6 +640,8 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 			mmio_write_32(pwr_base + PWR_CPU2CR,
 				      PWR_CPU2CR_LPDS_D2 | PWR_CPU2CR_LVDS_D2);
 		}
+		(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&stop2_entrypoint,
+				       sizeof(stop2_entrypoint));
 		stm32mp_gic_cpuif_disable();
 		stm32mp_gic_save();
 		stm32mp2_pll1_disable();
@@ -689,11 +657,14 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
 			mmio_write_32(pwr_base + PWR_CPU2CR, PWR_CPU2CR_PDDS_D2);
 		}
 #endif
+		(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&stop2_entrypoint,
+				       sizeof(stop2_entrypoint));
 		stm32mp_gic_cpuif_disable();
 #if STM32MP_M33_TDCID
 		stm32mp_gic_save();
 #endif
 		stm32mp2_pll1_disable();
+		stm32_set_scmi_sys_pwr(SCMI_SYS_PWR_SUSPEND);
 		break;
 
 	default:
@@ -770,6 +741,7 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
 	u_register_t mpidr = read_mpidr();
 	unsigned int core_id = MPIDR_AFFLVL0_VAL(mpidr);
 	uint32_t stateid = stm32_get_stateid(target_state->pwr_domain_state);
+	uint32_t entrypoint = 0;
 
 	stm32mp_state_set(core_id, STATE_RUNNING, true);
 
@@ -794,8 +766,13 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
 			stm32mp2_pll1_enable();
 			stm32mp_gic_resume();
 			stm32mp_gic_cpuif_enable();
+
+			/* Clear STOP2 entry point to avoid issue for next reset */
+			(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&entrypoint,
+					       sizeof(entrypoint));
+
 #if !STM32MP21
-			mmio_write_32(A35SSC_BASE + CA35SS_SYSCFG_VBAR_CR, stm32_sec_entrypoint);
+			stm32mp_ca35_set_vbar(stm32_sec_entrypoint);
 			/* Start the secondary core if it was running before Standby */
 			if ((core_id == STM32MP_PRIMARY_CPU) &&
 			    stm32mp_state_check(STM32MP_SECONDARY_CPU, STATE_START)) {
@@ -828,10 +805,14 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
 		stm32mp_gic_resume();
 		stm32mp_gic_cpuif_enable();
 
-		/* Restore register in CA35SS */
-		mmio_write_32(A35SSC_BASE + CA35SS_SYSCFG_VBAR_CR, stm32_sec_entrypoint);
+		/* Clear STOP2 entry point to avoid issue for next reset */
+		(void)nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&entrypoint,
+				       sizeof(entrypoint));
 
 #if !STM32MP21
+		/* Restore register in CA35SS */
+		stm32mp_ca35_set_vbar(stm32_sec_entrypoint);
+
 		/* Start the secondary core if it was running before STOP */
 		if ((core_id == STM32MP_PRIMARY_CPU) &&
 		    stm32mp_state_check(STM32MP_SECONDARY_CPU, STATE_START)) {
@@ -902,7 +883,8 @@ static void __dead2 stm32_pwr_domain_pwr_down_wfi(const psci_power_state_t
 	/* The first power down on core 0, core 1 is running */
 	if ((core_id == STM32MP_PRIMARY_CPU) &&
 	    !stm32mp_state_check(STM32MP_PRIMARY_CPU, STATE_START)) {
-		uintptr_t sec_entrypoint;
+		/* Cast uintptr_t to function pointer via void * to comply with MISRA Rule 11.1 */
+		void (*sec_entry_point_f)(void) = (void (*)(void))(void *)stm32_sec_entrypoint;
 
 		/* Core 0 can't be turned OFF, emulate it with a WFE loop */
 		VERBOSE("BL31: core0 entering wait loop...\n");
@@ -912,10 +894,9 @@ static void __dead2 stm32_pwr_domain_pwr_down_wfi(const psci_power_state_t
 
 		VERBOSE("BL31: core0 resumed.\n");
 		dsbsy();
-		sec_entrypoint = mmio_read_32(A35SSC_BASE + CA35SS_SYSCFG_VBAR_CR);
 		/* Jump manually to entry point, with mmu disabled. */
 		disable_mmu_el3();
-		((void(*)(void))sec_entrypoint)();
+		sec_entry_point_f();
 
 		/* This shouldn't be reached */
 		panic();
@@ -1044,7 +1025,7 @@ static void __dead2 stm32_system_off(void)
 		stm32mp_state_set(STM32MP_PRIMARY_CPU, STATE_DDR, false);
 		/* Send powerdown request to online secondary core(s) */
 		stm32_setup_cpu_pwrdown_sgi();
-		ret = psci_stop_other_cores(core_id, stm32_raise_pwrdown_sgi);
+		ret = psci_stop_other_cores(0, stm32_raise_pwrdown_sgi);
 		if (ret != PSCI_E_SUCCESS) {
 			ERROR("Failed to powerdown the secondary core\n");
 			panic();
@@ -1092,8 +1073,10 @@ static void __dead2 stm32_system_off(void)
 
 #if !STM32MP_M33_TDCID
 	/* Force DDR off */
+	stm32mp_board_ddr_power_off();
+
+	/* Disable DDRSHR */
 	mmio_clrbits_32(rcc_base + RCC_DDRITFCFGR, RCC_DDRITFCFGR_DDRSHR);
-	ddr_sub_system_clk_off();
 #endif
 
 	/* Prevent interrupts from spuriously waking up this cpu */
@@ -1109,12 +1092,14 @@ static void __dead2 stm32_system_off(void)
 	mmio_write_32(pwr_base + PWR_R3CIDCFGR, 0U);
 	mmio_write_32(pwr_base + PWR_CPU2CR, PWR_CPU2CR_PDDS_D2);
 #endif
-#if !STM32MP21
+#if !STM32MP_M33_TDCID && !STM32MP21
 	mmio_write_32(pwr_base + PWR_D3CR, PWR_D3CR_PDDS_D3);
 #endif /* !STM32MP21 */
 	stm32mp2_pll1_disable();
 
 #if !STM32MP_M33_TDCID
+	/* Maintain BKPSRAM content in power off to preserve TF-M ITS */
+	mmio_write_32(pwr_base + PWR_CR9, PWR_CR9_BKPRBSEN);
 	/* Do not maintain RETRAM memory content in Standby or Vbat */
 	mmio_write_32(pwr_base + PWR_CR10, PWR_CR10_RETRBSEN_DISABLE);
 #endif
@@ -1131,6 +1116,7 @@ static void __dead2 stm32_system_off(void)
 #if !STM32MP21
 	mmio_write_32(exti2_base + EXTI2_C1IMR3, 0U);
 #endif /* !STM32MP21 */
+#if !STM32MP_M33_TDCID
 	/* Deactivate CID filtering on EXTI2_C2IMRx */
 	mmio_write_32(exti2_base + EXTI_CmCIDCFGR(1U), 0U);
 	mmio_write_32(exti2_base + EXTI2_C2IMR1, 0U);
@@ -1143,9 +1129,13 @@ static void __dead2 stm32_system_off(void)
 	mmio_write_32(exti2_base + EXTI2_C3IMR2, 0U);
 	mmio_write_32(exti2_base + EXTI2_C3IMR3, 0U);
 #endif /* !STM32MP21 */
+#endif /* !STM32MP_M33_TDCID */
 
 	/* Disable STATE_RUNNING state for this core */
 	stm32mp_state_set(core_id, STATE_RUNNING, false);
+
+	/* Clear previous status */
+	mmio_setbits_32(pwr_base + PWR_CPU1CR, PWR_CPU1CR_CSSF);
 
 	INFO("BL31: power off\n");
 	console_flush();
@@ -1164,7 +1154,32 @@ static void __dead2 stm32_system_off(void)
 
 static void __dead2 stm32_system_reset(void)
 {
+	uintptr_t pwr_base = stm32mp_pwr_base();
+
+	/* Clear previous status */
+	mmio_setbits_32(pwr_base + PWR_CPU1CR, PWR_CPU1CR_CSSF);
+
+	INFO("BL31: System cold reset\n");
+	stm32mp_system_cold_reset();
+}
+
+static int stm32_system_reset2(int is_vendor, int reset_type, u_register_t cookie)
+{
+	uintptr_t pwr_base = stm32mp_pwr_base();
+
+	if (is_vendor || (reset_type != PSCI_RESET2_SYSTEM_WARM_RESET))
+		return PSCI_E_INVALID_PARAMS;
+
+	/* Clear previous status */
+	mmio_setbits_32(pwr_base + PWR_CPU1CR, PWR_CPU1CR_CSSF);
+
+	INFO("BL31: System reset\n");
 	stm32mp_system_reset();
+
+	/* This shouldn't be reached */
+	panic();
+
+	return 0;
 }
 
 /**
@@ -1382,6 +1397,7 @@ static const plat_psci_ops_t stm32_psci_ops = {
 	.pwr_domain_pwr_down_wfi = stm32_pwr_domain_pwr_down_wfi,
 	.system_off = stm32_system_off,
 	.system_reset = stm32_system_reset,
+	.system_reset2 = stm32_system_reset2,
 	.validate_power_state = stm32_validate_power_state,
 	.validate_ns_entrypoint = stm32_validate_ns_entrypoint,
 	.get_sys_suspend_power_state = stm32_get_sys_suspend_power_state,
@@ -1519,12 +1535,13 @@ static void stm32_pm_tdcid_init(void *fdt)
 	mmio_setbits_32(rcc_base + RCC_LEGBOOTCR, RCC_LEGBOOTCR_LEGACY_BEN);
 
 #if STM32MP21
-	/* Maintain BKPSRAM & RETRAM content in Standby */
+	/* Maintain BKPSRAM content in Standby */
 	mmio_write_32(pwr_base + PWR_CR9, PWR_CR9_BKPRBSEN);
 #else
-	/* Maintain BKPSRAM & LPSRAM1 & RETRAM content in Standby */
+	/* Maintain BKPSRAM & LPSRAM1 content in Standby */
 	mmio_write_32(pwr_base + PWR_CR9, PWR_CR9_BKPRBSEN|PWR_CR9_LPR1BSEN);
 #endif
+	/* Maintain RETRAM content in Standby */
 	mmio_write_32(pwr_base + PWR_CR10, PWR_CR10_RETRBSEN_STANDBY);
 
 	/* Prevent RETRAM erase */
@@ -1564,6 +1581,8 @@ static void stm32_pm_init(void *fdt)
 
 #if !STM32MP_M33_TDCID
 	stm32_pm_tdcid_init(fdt);
+#else
+	scmi_init();
 #endif
 }
 
@@ -1575,9 +1594,6 @@ int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 {
 	int ret = 0;
 	void *fdt = NULL;
-	uint32_t stop2_entrypoint = (uint32_t)(uintptr_t)&stm32_stop2_entrypoint;
-	struct nvmem_cell stop2_entrypoint_cell;
-	assert(stop2_entrypoint < UINT32_MAX);
 
 	if (fdt_get_address(&fdt) == 0) {
 		panic();
@@ -1591,7 +1607,7 @@ int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 
 	/* Program secondary CPU entry points. */
 	stm32_sec_entrypoint = sec_entrypoint;
-	mmio_write_32(A35SSC_BASE + CA35SS_SYSCFG_VBAR_CR, stm32_sec_entrypoint);
+	stm32mp_ca35_set_vbar(stm32_sec_entrypoint);
 
 	/* Initialize the state per cpu */
 	stm32_percpu_data[STM32MP_PRIMARY_CPU].state[STATE_START] = true;
@@ -1600,13 +1616,11 @@ int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 	stm32_percpu_data[STM32MP_SECONDARY_CPU].state[STATE_START] = false;
 	stm32_percpu_data[STM32MP_SECONDARY_CPU].state[STATE_RUNNING] = false;
 
-	/* Save boot entry point for STOP2 exit */
+	/* Get nvmem for entry point on STOP2 exit */
 	ret = stm32_get_stop2_entrypoint_cell(&stop2_entrypoint_cell);
 	if (ret != 0) {
 		return ret;
 	}
-	nvmem_cell_write(&stop2_entrypoint_cell, (uint8_t *)&stop2_entrypoint,
-			 sizeof(stop2_entrypoint));
 
 	stm32_pm_init(fdt);
 

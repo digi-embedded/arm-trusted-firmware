@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Arm Limited. All rights reserved.
+ * Copyright (c) 2023-2025, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -20,6 +20,8 @@
 #if CTX_INCLUDE_AARCH32_REGS == 1
 #error "Travis supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
+
+cpu_reset_prologue travis
 
 cpu_reset_func_start travis
 	/* ----------------------------------------------------
@@ -45,16 +47,15 @@ func travis_core_pwr_dwn
 1:
 #endif
 	/* ---------------------------------------------------
-	 * Enable CPU power down bit in power control register
+	 * Flip CPU power down bit in power control register.
+	 * It will be set on powerdown and cleared on wakeup
 	 * ---------------------------------------------------
 	 */
-	sysreg_bit_set TRAVIS_IMP_CPUPWRCTLR_EL1, \
+	sysreg_bit_toggle TRAVIS_IMP_CPUPWRCTLR_EL1, \
 		TRAVIS_IMP_CPUPWRCTLR_EL1_CORE_PWRDN_EN_BIT
 	isb
 	ret
 endfunc travis_core_pwr_dwn
-
-errata_report_shim travis
 
 .section .rodata.travis_regs, "aS"
 travis_regs: /* The ASCII list of register names to be reported */

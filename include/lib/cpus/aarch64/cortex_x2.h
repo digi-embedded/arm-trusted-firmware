@@ -17,15 +17,7 @@
  ******************************************************************************/
 #define CORTEX_X2_CPUECTLR_EL1					S3_0_C15_C1_4
 #define CORTEX_X2_CPUECTLR_EL1_PFSTIDIS_BIT			(ULL(1) << 8)
-
-/*******************************************************************************
- * CPU Extended Control register 2 specific definitions
- ******************************************************************************/
-#define CORTEX_X2_CPUECTLR2_EL1					S3_0_C15_C1_5
-
-#define CORTEX_X2_CPUECTLR2_EL1_PF_MODE_SHIFT			U(11)
-#define CORTEX_X2_CPUECTLR2_EL1_PF_MODE_WIDTH			U(4)
-#define CORTEX_X2_CPUECTLR2_EL1_PF_MODE_CNSRV			ULL(0x9)
+#define CORTEX_X2_CPUECTLR_EL1_WS_THR_DISABLE_ALL_BITS		(ULL(0xFF) << 18)
 
 /*******************************************************************************
  * CPU Auxiliary Control register 3 specific definitions.
@@ -49,6 +41,11 @@
  ******************************************************************************/
 #define CORTEX_X2_CPUACTLR2_EL1					S3_0_C15_C1_1
 #define CORTEX_X2_CPUACTLR2_EL1_BIT_40				(ULL(1) << 40)
+
+/*******************************************************************************
+ * CPU Auxiliary Control Register 4 definitions
+ ******************************************************************************/
+ #define CORTEX_X2_CPUACTLR4_EL1				S3_0_C15_C1_3
 
 /*******************************************************************************
  * CPU Auxiliary Control Register 5 definitions

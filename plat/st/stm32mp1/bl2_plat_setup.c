@@ -75,7 +75,7 @@ static void print_reset_reason(void)
 		return;
 	}
 
-	INFO("Reset reason (0x%x):\n", rstsr);
+	NOTICE("Reset reason (0x%x):\n", rstsr);
 
 	if ((rstsr & RCC_MP_RSTSCLRR_PADRSTF) == 0U) {
 		if ((rstsr & RCC_MP_RSTSCLRR_STDBYRSTF) != 0U) {
@@ -499,6 +499,10 @@ skip_console_init:
 	stm32mp1_arch_security_setup();
 
 	print_reset_reason();
+
+#if !STM32MP1_OPTEE_IN_SYSRAM
+	stm32mp_gic_init();
+#endif
 
 #if STM32MP15
 	if (stm32mp_check_closed_device() == STM32MP_CHIP_SEC_CLOSED) {

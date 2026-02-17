@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2018-2025, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
  */
@@ -209,7 +209,7 @@ static const struct stm32mp_ddr_reg_info ddr_registers[REG_TYPE_NB] = {
 	},
 };
 
-static void stm32mp1_ddrphy_idone_wait(struct stm32mp_ddrphy *phy)
+static int stm32mp1_ddrphy_idone_wait(struct stm32mp_ddrphy *phy)
 {
 	uint32_t pgsr;
 	int error = 0;
@@ -252,11 +252,15 @@ static void stm32mp1_ddrphy_idone_wait(struct stm32mp_ddrphy *phy)
 	} while (((pgsr & DDRPHYC_PGSR_IDONE) == 0U) && (error == 0));
 	VERBOSE("\n[0x%lx] pgsr = 0x%x\n",
 		(uintptr_t)&phy->pgsr, pgsr);
+
+	return -error;
 }
 
-static void stm32mp1_ddrphy_init(struct stm32mp_ddrphy *phy, uint32_t pir)
+static int stm32mp1_ddrphy_init(struct stm32mp_ddrphy *phy, uint32_t pir)
 {
 	uint32_t pir_init = pir | DDRPHYC_PIR_INIT;
+	uint32_t zq0sr0;
+	int ret = 0;
 
 	mmio_write_32((uintptr_t)&phy->pir, pir_init);
 	VERBOSE("[0x%lx] pir = 0x%x -> 0x%x\n",
@@ -267,7 +271,17 @@ static void stm32mp1_ddrphy_init(struct stm32mp_ddrphy *phy, uint32_t pir)
 	udelay(DDR_DELAY_10US);
 
 	/* Wait DRAM initialization and Gate Training Evaluation complete */
-	stm32mp1_ddrphy_idone_wait(phy);
+	ret = stm32mp1_ddrphy_idone_wait(phy);
+	if (ret != 0) {
+		return ret;
+	}
+
+	zq0sr0 = mmio_read_32((uintptr_t)&phy->zq0sr0);
+	if (((zq0sr0 & DDRPHYC_ZQ0SRN_ZDONE) == 0U) || ((zq0sr0 & DDRPHYC_ZQ0SRN_ZERR) != 0U)) {
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 /* Wait quasi dynamic register update */
@@ -623,7 +637,7 @@ void stm32mp1_refresh_compensation(const struct stm32mp_ddr_config *config,
 	}
 }
 
-static void stm32mp1_self_refresh_zcal(struct stm32mp_ddr_priv *priv, uint32_t zdata)
+static int stm32mp1_self_refresh_zcal(struct stm32mp_ddr_priv *priv, uint32_t zdata)
 {
 	/* sequence for PUBL I/O Data Retention during Power-Down */
 
@@ -652,7 +666,7 @@ static void stm32mp1_self_refresh_zcal(struct stm32mp_ddr_priv *priv, uint32_t z
 	/* 14. Wait for ZQ calibration to finish by polling a 1 status
 	 * on PGSR.IDONE.
 	 */
-	stm32mp1_ddrphy_init(priv->phy, DDRPHYC_PIR_ZCAL);
+	return stm32mp1_ddrphy_init(priv->phy, DDRPHYC_PIR_ZCAL);
 }
 
 void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
@@ -662,19 +676,21 @@ void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
 	uint64_t time;
 	int ret = -EINVAL;
 
-	if ((config->c_reg.mstr & DDRCTRL_MSTR_DDR3) != 0U) {
-		ret = stm32mp_board_ddr_power_init(STM32MP_DDR3);
-	} else if ((config->c_reg.mstr & DDRCTRL_MSTR_LPDDR2) != 0U) {
-		ret = stm32mp_board_ddr_power_init(STM32MP_LPDDR2);
-	} else if ((config->c_reg.mstr & DDRCTRL_MSTR_LPDDR3) != 0U) {
-		ret = stm32mp_board_ddr_power_init(STM32MP_LPDDR3);
-	} else {
-		ERROR("DDR type not supported\n");
-	}
+	if (!config->self_refresh) {
+		if ((config->c_reg.mstr & DDRCTRL_MSTR_DDR3) != 0U) {
+			ret = stm32mp_board_ddr_power_init(STM32MP_DDR3);
+		} else if ((config->c_reg.mstr & DDRCTRL_MSTR_LPDDR2) != 0U) {
+			ret = stm32mp_board_ddr_power_init(STM32MP_LPDDR2);
+		} else if ((config->c_reg.mstr & DDRCTRL_MSTR_LPDDR3) != 0U) {
+			ret = stm32mp_board_ddr_power_init(STM32MP_LPDDR3);
+		} else {
+			ERROR("DDR type not supported\n");
+		}
 
-	if (ret != 0) {
-		ERROR("DDR power init failed\n");
-		panic();
+		if (ret != 0) {
+			ERROR("DDR power init failed\n");
+			panic();
+		}
 	}
 
 	VERBOSE("name = %s\n", config->info.name);
@@ -802,7 +818,10 @@ void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
 	 *  4. Monitor PHY init status by polling PUBL register PGSR.IDONE
 	 *     Perform DDR PHY DRAM initialization and Gate Training Evaluation
 	 */
-	stm32mp1_ddrphy_idone_wait(priv->phy);
+	ret = stm32mp1_ddrphy_idone_wait(priv->phy);
+	if (ret != 0) {
+		panic();
+	}
 
 	/*
 	 *  5. Indicate to PUBL that controller performs SDRAM initialization
@@ -825,10 +844,15 @@ void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
 		pir |= DDRPHYC_PIR_ZCALBYP;
 	}
 
-	stm32mp1_ddrphy_init(priv->phy, pir);
+	ret = stm32mp1_ddrphy_init(priv->phy, pir);
 
 	if (config->self_refresh) {
-		stm32mp1_self_refresh_zcal(priv, config->zdata);
+		/* Re-init PHY with ZQ calibration */
+		ret = stm32mp1_self_refresh_zcal(priv, config->zdata);
+	}
+
+	if (ret != 0) {
+		panic();
 	}
 
 	/*
@@ -892,10 +916,16 @@ void stm32mp1_ddr_init(struct stm32mp_ddr_priv *priv,
 		pir |= DDRPHYC_PIR_RVTRN;
 	}
 
-	stm32mp1_ddrphy_init(priv->phy, pir);
+	ret = stm32mp1_ddrphy_init(priv->phy, pir);
+	if (ret != 0) {
+		panic();
+	}
 
 	/* 11. monitor PUB PGSR.IDONE to poll completion of training sequence */
-	stm32mp1_ddrphy_idone_wait(priv->phy);
+	ret = stm32mp1_ddrphy_idone_wait(priv->phy);
+	if (ret != 0) {
+		panic();
+	}
 
 	/* Refresh compensation: forcing refresh command */
 	if (config->self_refresh) {

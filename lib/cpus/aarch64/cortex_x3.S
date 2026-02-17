@@ -24,27 +24,11 @@
 
 .global check_erratum_cortex_x3_3701769
 
-add_erratum_entry cortex_x3, ERRATUM(3701769), ERRATA_X3_3701769, NO_APPLY_AT_RESET
-
-check_erratum_ls cortex_x3, ERRATUM(3701769), CPU_REV(1, 2)
-
 #if WORKAROUND_CVE_2022_23960
 	wa_cve_2022_23960_bhb_vector_table CORTEX_X3_BHB_LOOP_COUNT, cortex_x3
 #endif /* WORKAROUND_CVE_2022_23960 */
 
-/* Disable hardware page aggregation. Enables mitigation for `CVE-2024-5660` */
-workaround_reset_start cortex_x3, CVE(2024, 5660), WORKAROUND_CVE_2024_5660
-	sysreg_bit_set CORTEX_X3_CPUECTLR_EL1, BIT(46)
-workaround_reset_end cortex_x3, CVE(2024, 5660)
-
-check_erratum_ls cortex_x3, CVE(2024, 5660), CPU_REV(1, 2)
-
-workaround_reset_start cortex_x3, ERRATUM(2070301), ERRATA_X3_2070301
-	sysreg_bitfield_insert CORTEX_X3_CPUECTLR2_EL1, CORTEX_X3_CPUECTLR2_EL1_PF_MODE_CNSRV, \
-	CORTEX_X3_CPUECTLR2_EL1_PF_MODE_LSB, CORTEX_X3_CPUECTLR2_EL1_PF_MODE_WIDTH
-workaround_reset_end cortex_x3, ERRATUM(2070301)
-
-check_erratum_ls cortex_x3, ERRATUM(2070301), CPU_REV(1, 2)
+cpu_reset_prologue cortex_x3
 
 workaround_reset_start cortex_x3, ERRATUM(2266875), ERRATA_X3_2266875
         sysreg_bit_set CORTEX_X3_CPUACTLR_EL1, BIT(22)
@@ -52,14 +36,17 @@ workaround_reset_end cortex_x3, ERRATUM(2266875)
 
 check_erratum_ls cortex_x3, ERRATUM(2266875), CPU_REV(1, 0)
 
-workaround_runtime_start cortex_x3, ERRATUM(2302506), ERRATA_X3_2302506
+workaround_reset_start cortex_x3, ERRATUM(2302506), ERRATA_X3_2302506
 	sysreg_bit_set	CORTEX_X3_CPUACTLR2_EL1, BIT(0)
-workaround_runtime_end cortex_x3, ERRATUM(2302506), NO_ISB
+workaround_reset_end cortex_x3, ERRATUM(2302506)
 
 check_erratum_ls cortex_x3, ERRATUM(2302506), CPU_REV(1, 1)
 
+.global erratum_cortex_x3_2313909_wa
 workaround_runtime_start cortex_x3, ERRATUM(2313909), ERRATA_X3_2313909
-	sysreg_bit_set	CORTEX_X3_CPUACTLR2_EL1, CORTEX_X3_CPUACTLR2_EL1_BIT_36
+	/* Set/unset bit 36 in ACTLR2_EL1. The first call will set it, applying
+	 * the workaround. Second call clears it to undo it. */
+	sysreg_bit_toggle CORTEX_X3_CPUACTLR2_EL1, CORTEX_X3_CPUACTLR2_EL1_BIT_36
 workaround_runtime_end cortex_x3, ERRATUM(2313909), NO_ISB
 
 check_erratum_ls cortex_x3, ERRATUM(2313909), CPU_REV(1, 0)
@@ -81,9 +68,9 @@ workaround_reset_end cortex_x3, ERRATUM(2615812)
 
 check_erratum_ls cortex_x3, ERRATUM(2615812), CPU_REV(1, 1)
 
-workaround_runtime_start cortex_x3, ERRATUM(2641945), ERRATA_X3_2641945
+workaround_reset_start cortex_x3, ERRATUM(2641945), ERRATA_X3_2641945
 	sysreg_bit_set	CORTEX_X3_CPUACTLR6_EL1, BIT(41)
-workaround_runtime_end cortex_x3, ERRATUM(2641945), NO_ISB
+workaround_reset_end cortex_x3, ERRATUM(2641945)
 
 check_erratum_ls cortex_x3, ERRATUM(2641945), CPU_REV(1, 0)
 
@@ -109,6 +96,28 @@ workaround_reset_end cortex_x3, ERRATUM(2779509)
 
 check_erratum_ls cortex_x3, ERRATUM(2779509), CPU_REV(1, 1)
 
+workaround_reset_start cortex_x3, ERRATUM(3213672), ERRATA_X3_3213672
+	sysreg_bit_set	CORTEX_X3_CPUACTLR_EL1, BIT(36)
+workaround_reset_end cortex_x3, ERRATUM(3213672)
+
+check_erratum_ls cortex_x3, ERRATUM(3213672), CPU_REV(1, 2)
+
+workaround_reset_start cortex_x3, ERRATUM(3692984), ERRATA_X3_3692984
+	sysreg_bit_set	CORTEX_X3_CPUACTLR6_EL1, BIT(41)
+workaround_reset_end cortex_x3, ERRATUM(3692984)
+
+check_erratum_ls cortex_x3, ERRATUM(3692984), CPU_REV(1, 2)
+
+add_erratum_entry cortex_x3, ERRATUM(3701769), ERRATA_X3_3701769
+
+check_erratum_ls cortex_x3, ERRATUM(3701769), CPU_REV(1, 2)
+
+workaround_reset_start cortex_x3, ERRATUM(3827463), ERRATA_X3_3827463
+	sysreg_bit_set	CORTEX_X3_CPUACTLR_EL1, BIT(1)
+workaround_reset_end cortex_x3, ERRATUM(3827463)
+
+check_erratum_ls cortex_x3, ERRATUM(3827463), CPU_REV(1, 1)
+
 workaround_reset_start cortex_x3, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
 #if IMAGE_BL31
 	override_vector_table wa_cve_vbar_cortex_x3
@@ -116,6 +125,13 @@ workaround_reset_start cortex_x3, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
 workaround_reset_end cortex_x3, CVE(2022, 23960)
 
 check_erratum_chosen cortex_x3, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
+
+/* Disable hardware page aggregation. Enables mitigation for `CVE-2024-5660` */
+workaround_reset_start cortex_x3, CVE(2024, 5660), WORKAROUND_CVE_2024_5660
+	sysreg_bit_set CORTEX_X3_CPUECTLR_EL1, BIT(46)
+workaround_reset_end cortex_x3, CVE(2024, 5660)
+
+check_erratum_ls cortex_x3, CVE(2024, 5660), CPU_REV(1, 2)
 
 workaround_reset_start cortex_x3, CVE(2024, 7881), WORKAROUND_CVE_2024_7881
 	/* ---------------------------------
@@ -138,7 +154,7 @@ cpu_reset_func_end cortex_x3
 	 * ----------------------------------------------------
 	 */
 func cortex_x3_core_pwr_dwn
-	apply_erratum cortex_x3, ERRATUM(2313909), ERRATA_X3_2313909, NO_GET_CPU_REV
+	apply_erratum cortex_x3, ERRATUM(2313909), ERRATA_X3_2313909
 	/* ---------------------------------------------------
 	 * Enable CPU power down bit in power control register
 	 * ---------------------------------------------------
@@ -148,8 +164,6 @@ func cortex_x3_core_pwr_dwn
 	isb
 	ret
 endfunc cortex_x3_core_pwr_dwn
-
-errata_report_shim cortex_x3
 
 	/* ---------------------------------------------
 	 * This function provides Cortex-X3-
@@ -170,10 +184,6 @@ func cortex_x3_cpu_reg_dump
 	ret
 endfunc cortex_x3_cpu_reg_dump
 
-declare_cpu_ops_wa_4 cortex_x3, CORTEX_X3_MIDR, \
+declare_cpu_ops cortex_x3, CORTEX_X3_MIDR, \
 	cortex_x3_reset_func, \
-	CPU_NO_EXTRA1_FUNC, \
-	CPU_NO_EXTRA2_FUNC, \
-	CPU_NO_EXTRA3_FUNC, \
-	check_erratum_cortex_x3_7881, \
 	cortex_x3_core_pwr_dwn

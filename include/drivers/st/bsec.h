@@ -31,13 +31,13 @@
  * BSEC open is considered invalid in OSTL use case.
  * @state: global state
  *           [1:0] BSEC state
- *             0b: Closed
- *             1b: Invalid
+ *             0Xb: Closed
+ *             1Xb: Invalid
  *           [8]: Hardware Key set = 1b
  */
 #define BSEC_STATE_CLOSED		U(0x0)
-#define BSEC_STATE_INVALID		U(0x1)
-#define BSEC_STATE_MASK			BIT(0)
+#define BSEC_STATE_INVALID		U(0x2)
+#define BSEC_STATE_MASK		        BIT(1)
 
 #define BSEC_HARDWARE_KEY		BIT(8)
 
@@ -69,7 +69,7 @@ uint32_t bsec_permanent_lock_otp(uint32_t otp);
 uint32_t bsec_check_nsec_access_rights(uint32_t otp);
 #endif
 
-#if defined(STM32MP21) && STM32MP21 && !(defined(STM32MP_M33_TDCID) && STM32MP_M33_TDCID)
+#if defined(STM32MP21) && STM32MP21
 void bsec_increment_hdpl(void);
 #else
 static inline void bsec_increment_hdpl(void) {}

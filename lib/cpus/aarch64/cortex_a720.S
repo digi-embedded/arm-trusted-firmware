@@ -9,6 +9,7 @@
 #include <common/bl_common.h>
 #include <cortex_a720.h>
 #include <cpu_macros.S>
+#include <dsu_macros.S>
 #include <plat_macros.S>
 #include "wa_cve_2022_23960_bhb_vector.S"
 
@@ -21,6 +22,8 @@
 #if CTX_INCLUDE_AARCH32_REGS == 1
 #error "Cortex A720 supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
+
+cpu_reset_prologue cortex_a720
 
 .global check_erratum_cortex_a720_3699561
 
@@ -39,6 +42,15 @@ workaround_reset_start cortex_a720, ERRATUM(2844092), ERRATA_A720_2844092
 workaround_reset_end cortex_a720, ERRATUM(2844092)
 
 check_erratum_ls cortex_a720, ERRATUM(2844092), CPU_REV(0, 1)
+
+workaround_reset_start cortex_a720, ERRATUM(2900952), ERRATA_DSU_2900952
+	errata_dsu_2900952_wa_apply
+workaround_reset_end cortex_a720, ERRATUM(2900952)
+
+check_erratum_custom_start cortex_a720, ERRATUM(2900952)
+	check_errata_dsu_2900952_applies
+	ret
+check_erratum_custom_end cortex_a720, ERRATUM(2900952)
 
 workaround_reset_start cortex_a720, ERRATUM(2926083), ERRATA_A720_2926083
 /* Erratum 2926083 workaround is required only if SPE is enabled */
@@ -74,7 +86,7 @@ workaround_reset_end cortex_a720, CVE(2022, 23960)
 
 check_erratum_chosen cortex_a720, CVE(2022, 23960), WORKAROUND_CVE_2022_23960
 
-add_erratum_entry cortex_a720, ERRATUM(3699561), ERRATA_A720_3699561, NO_APPLY_AT_RESET
+add_erratum_entry cortex_a720, ERRATUM(3699561), ERRATA_A720_3699561
 
 check_erratum_ls cortex_a720, ERRATUM(3699561), CPU_REV(0, 2)
 
@@ -97,8 +109,6 @@ func cortex_a720_core_pwr_dwn
 	isb
 	ret
 endfunc cortex_a720_core_pwr_dwn
-
-errata_report_shim cortex_a720
 
 	/* ---------------------------------------------
 	 * This function provides Cortex A720-specific
