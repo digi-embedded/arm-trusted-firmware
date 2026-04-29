@@ -12,13 +12,15 @@
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <common/desc_image_load.h>
-#include <drivers/clk.h>
+#include <drivers/arm/rse_comms.h>
+#include <drivers/clk-fixed.h>
 #include <drivers/delay_timer.h>
 #include <drivers/generic_delay_timer.h>
 #include <drivers/mmc.h>
 #include <drivers/st/bsec.h>
 #include <drivers/st/regulator.h>
 #include <drivers/st/regulator_fixed.h>
+#include <drivers/st/rse_shm.h>
 #include <drivers/st/stm32_console.h>
 #include <drivers/st/stm32_hash.h>
 #include <drivers/st/stm32_iwdg.h>
@@ -35,6 +37,9 @@
 #include <lib/fconf/fconf_dyn_cfg_getter.h>
 #include <lib/mmio.h>
 #include <lib/optee_utils.h>
+#if STM32MP_M33_TDCID
+#include <lib/psa/rse_platform_api.h>
+#endif
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
 
@@ -42,6 +47,9 @@
 #include <stm32mp_common.h>
 #include <stm32mp_dt.h>
 #include <stm32mp2_context.h>
+#if STM32MP_M33_TDCID
+#include <stm32_rse_comms.h>
+#endif
 
 #define BOOT_CTX_ADDR	0x0e000020UL
 
@@ -158,7 +166,7 @@ static void print_reset_reason(void)
 		}
 	}
 
-	INFO("Reset reason: %s (0x%x)\n", reason_str, rstsr);
+	NOTICE("Reset reason: %s (0x%x)\n", reason_str, rstsr);
 }
 
 #if STM32MP_M33_TDCID
@@ -213,6 +221,11 @@ void bl2_el3_early_platform_setup(u_register_t arg0 __unused,
 void bl2_platform_setup(void)
 {
 	int ret;
+#if STM32MP_M33_TDCID
+	const struct rse_shmem psa_client = {
+		.base = (void *)RSE_SHMEM_BASE,
+		.len =  RSE_SHMEM_SIZE };
+#endif
 
 #if !STM32MP_M33_TDCID
 	ret = stm32mp2_ddr_probe();
@@ -237,6 +250,14 @@ void bl2_platform_setup(void)
 #if !STM32MP_M33_TDCID
 	/* Set QOS ICN priority */
 	stm32mp_syscfg_set_icn_qos();
+#endif
+
+#if STM32MP_M33_TDCID
+	ret = rse_mbx_init(&psa_client);
+	if (ret < 0) {
+		ERROR("rse_mbx_init %d\n", ret);
+		panic();
+	}
 #endif
 }
 
@@ -425,6 +446,7 @@ void bl2_el3_plat_arch_setup(void)
 				 BOOT_API_CTX_BOOT_INTERFACE_SEL_SERIAL_UART);
 	uintptr_t uart_prog_addr __unused;
 	bool lse_tamper_occured = false;
+	void *fdt = NULL;
 
 	if (stm32_otp_probe() != 0) {
 		panic();
@@ -452,7 +474,13 @@ void bl2_el3_plat_arch_setup(void)
 	ddr_sub_system_clk_init();
 #endif
 
-	if (stm32mp2_clk_init() < 0) {
+	if (fdt_get_address(&fdt) == 0) {
+		panic();
+	}
+
+	clk_fixed_register(fdt);
+
+	if (stm32mp2_clk_init(fdt) < 0) {
 		panic();
 	}
 
@@ -495,6 +523,14 @@ void bl2_el3_plat_arch_setup(void)
 	 */
 	if (boot_context->boot_interface_selected == BOOT_API_CTX_BOOT_INTERFACE_SEL_FLASH_EMMC) {
 		boot_context->boot_interface_instance = 2U;
+	}
+
+	if (stm32_rifsc_check_peripheral_access() != 0) {
+		panic();
+	}
+
+	if (stm32_rifsc_semaphore_init() != 0) {
+		panic();
 	}
 #endif
 
@@ -545,9 +581,7 @@ skip_console_init:
 		panic();
 	}
 
-	if (dt_pmic_status() > 0) {
-		initialize_pmic();
-	}
+	initialize_pmic();
 
 	fconf_populate("TB_FW", STM32MP_DTB_BASE);
 
@@ -825,6 +859,18 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 
 void bl2_el3_plat_prepare_exit(void)
 {
+#if STM32MP_M33_TDCID
+#if TRUSTED_BOARD_BOOT
+	if (rse_platform_stm32_share_key_stop(0) != PSA_SUCCESS) {
+		panic();
+	}
+#endif
+
+	if (stm32_rifsc_semaphore_exit() != 0) {
+		panic();
+	}
+#endif
+
 	flush_dcache_range(BSS_START, BSS_END - BSS_START);
 	flush_dcache_range(DATA_START, DATA_END - DATA_START);
 

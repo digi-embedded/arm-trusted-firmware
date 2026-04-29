@@ -9,6 +9,7 @@
 #include <common/bl_common.h>
 #include <cortex_x925.h>
 #include <cpu_macros.S>
+#include <dsu_macros.S>
 #include <plat_macros.S>
 
 /* Hardware handled coherency */
@@ -21,11 +22,36 @@
 #error "Cortex-X925 supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
 
+cpu_reset_prologue cortex_x925
+
+workaround_reset_start cortex_x925, ERRATUM(2900952), ERRATA_DSU_2900952
+	errata_dsu_2900952_wa_apply
+workaround_reset_end cortex_x925, ERRATUM(2900952)
+
+check_erratum_custom_start cortex_x925, ERRATUM(2900952)
+	check_errata_dsu_2900952_applies
+	ret
+check_erratum_custom_end cortex_x925, ERRATUM(2900952)
+
+add_erratum_entry cortex_x925, ERRATUM(3701747), ERRATA_X925_3701747
+
 .global check_erratum_cortex_x925_3701747
-
-add_erratum_entry cortex_x925, ERRATUM(3701747), ERRATA_X925_3701747, NO_APPLY_AT_RESET
-
 check_erratum_ls cortex_x925, ERRATUM(3701747), CPU_REV(0, 1)
+
+workaround_reset_start cortex_x925, ERRATUM(2963999), ERRATA_X925_2963999
+	/* Add ISB before MRS reads of MPIDR_EL1/MIDR_EL1 */
+	ldr x0, =0x0
+	msr S3_6_c15_c8_0, x0 	/* msr CPUPSELR_EL3, X0 */
+	ldr x0, =0xd5380000
+	msr S3_6_c15_c8_2, x0 	/* msr CPUPOR_EL3, X0 */
+	ldr x0, =0xFFFFFF40
+	msr S3_6_c15_c8_3,x0 	/* msr CPUPMR_EL3, X0 */
+	ldr x0, =0x000080010033f
+	msr S3_6_c15_c8_1, x0	/* msr CPUPCR_EL3, X0 */
+	isb
+workaround_reset_end cortex_x925, ERRATUM(2963999)
+
+check_erratum_ls cortex_x925, ERRATUM(2963999), CPU_REV(0, 0)
 
 /* Disable hardware page aggregation. Enables mitigation for `CVE-2024-5660` */
 workaround_reset_start cortex_x925, CVE(2024, 5660), WORKAROUND_CVE_2024_5660
@@ -64,8 +90,6 @@ func cortex_x925_core_pwr_dwn
 	ret
 endfunc cortex_x925_core_pwr_dwn
 
-errata_report_shim cortex_x925
-
 	/* ---------------------------------------------
 	 * This function provides Cortex-X925 specific
 	 * register information for crash reporting.
@@ -85,10 +109,6 @@ func cortex_x925_cpu_reg_dump
 	ret
 endfunc cortex_x925_cpu_reg_dump
 
-declare_cpu_ops_wa_4 cortex_x925, CORTEX_X925_MIDR, \
+declare_cpu_ops cortex_x925, CORTEX_X925_MIDR, \
 	cortex_x925_reset_func, \
-	CPU_NO_EXTRA1_FUNC, \
-	CPU_NO_EXTRA2_FUNC, \
-	CPU_NO_EXTRA3_FUNC, \
-	check_erratum_cortex_x925_7881, \
 	cortex_x925_core_pwr_dwn

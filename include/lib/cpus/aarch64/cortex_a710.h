@@ -44,20 +44,17 @@
 #define CORTEX_A710_CPUACTLR3_EL1				S3_0_C15_C1_2
 
 /*******************************************************************************
+ * CPU Auxiliary Control register 4 specific definitions.
+ ******************************************************************************/
+#define CORTEX_A710_CPUACTLR4_EL1                               S3_0_C15_C1_3
+
+/*******************************************************************************
  * CPU Auxiliary Control register 5 specific definitions.
  ******************************************************************************/
 #define CORTEX_A710_CPUACTLR5_EL1				S3_0_C15_C8_0
 #define CORTEX_A710_CPUACTLR5_EL1_BIT_13			(ULL(1) << 13)
 #define CORTEX_A710_CPUACTLR5_EL1_BIT_17			(ULL(1) << 17)
 #define CORTEX_A710_CPUACTLR5_EL1_BIT_44			(ULL(1) << 44)
-
-/*******************************************************************************
- * CPU Auxiliary Control register specific definitions.
- ******************************************************************************/
-#define CORTEX_A710_CPUECTLR2_EL1				S3_0_C15_C1_5
-#define CORTEX_A710_CPUECTLR2_EL1_PF_MODE_CNSRV			ULL(9)
-#define CPUECTLR2_EL1_PF_MODE_LSB				U(11)
-#define CPUECTLR2_EL1_PF_MODE_WIDTH				U(4)
 
 /*******************************************************************************
  * CPU Selected Instruction Private register specific definitions.

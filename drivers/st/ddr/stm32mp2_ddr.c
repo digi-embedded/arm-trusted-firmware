@@ -70,9 +70,7 @@ static const struct stm32mp_ddr_reg_desc ddr_reg[DDRCTL_REG_REG_SIZE] = {
 	DDRCTL_REG_REG(init7, true),
 	DDRCTL_REG_REG(dimmctl, false),
 	DDRCTL_REG_REG(rankctl, true),
-#if !CONFIG_STM32MP25X_REVA
 	DDRCTL_REG_REG(rankctl1, true),
-#endif /* !CONFIG_STM32MP25X_REVA */
 	DDRCTL_REG_REG(zqctl0, true),
 	DDRCTL_REG_REG(zqctl1, false),
 	DDRCTL_REG_REG(zqctl2, false),
@@ -92,9 +90,7 @@ static const struct stm32mp_ddr_reg_desc ddr_reg[DDRCTL_REG_REG_SIZE] = {
 	DDRCTL_REG_REG(dbg1, false),
 	DDRCTL_REG_REG(dbgcmd, false),
 	DDRCTL_REG_REG(swctl, false), /* forced qd value */
-#if !CONFIG_STM32MP25X_REVA
 	DDRCTL_REG_REG(swctlstatic, false),
-#endif /* !CONFIG_STM32MP25X_REVA */
 	DDRCTL_REG_REG(poisoncfg, false),
 	DDRCTL_REG_REG(pccfg, false),
 };
@@ -146,10 +142,8 @@ static const struct stm32mp_ddr_reg_desc ddr_perf[DDRCTL_REG_PERF_SIZE] = {
 	DDRCTL_REG_PERF(perfhpr1, true),
 	DDRCTL_REG_PERF(perflpr1, true),
 	DDRCTL_REG_PERF(perfwr1, true),
-#if !CONFIG_STM32MP25X_REVA
 	DDRCTL_REG_PERF(sched3, false),
 	DDRCTL_REG_PERF(sched4, false),
-#endif /* !CONFIG_STM32MP25X_REVA */
 	DDRCTL_REG_PERF(pcfgr_0, false),
 	DDRCTL_REG_PERF(pcfgw_0, false),
 	DDRCTL_REG_PERF(pctrl_0, false),

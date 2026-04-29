@@ -10,8 +10,10 @@
 #include <bl31/bl31.h>
 #include <common/bl_common.h>
 #include <common/runtime_svc.h>
+#include <drivers/clk-fixed.h>
 #include <drivers/generic_delay_timer.h>
 #include <drivers/st/stm32_console.h>
+#include <drivers/st/stm32mp_reset.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
 
@@ -27,6 +29,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	bl_params_t *params_from_bl2;
 	char name[STM32_SOC_NAME_SIZE];
 	int ret;
+	void *fdt = NULL;
 
 	stm32mp_setup_early_console();
 
@@ -62,7 +65,13 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		panic();
 	}
 
-	ret = stm32mp2_clk_init();
+	if (fdt_get_address(&fdt) == 0) {
+		panic();
+	}
+
+	clk_fixed_register(fdt);
+
+	ret = stm32mp2_clk_init(fdt);
 	if (ret < 0) {
 		EARLY_ERROR("%s: failed init clocks (%d)\n", __func__, ret);
 		panic();
@@ -203,8 +212,16 @@ entry_point_info_t *bl31_plat_get_next_image_ep_info(unsigned int type)
 	return next_image_info;
 }
 
+/* Only support system reset for serial boot and no low power feature to reduce BL31 size */
 #if STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER
-static const plat_psci_ops_t null_psci_ops;
+static void __dead2 stm32_system_reset(void)
+{
+	stm32mp_system_reset();
+}
+
+static const plat_psci_ops_t stm32_psci_ops = {
+	.system_reset = stm32_system_reset,
+};
 
 /* Stub PSCI platform functions */
 plat_local_state_t plat_get_target_pwr_state(unsigned int lvl,
@@ -217,7 +234,7 @@ plat_local_state_t plat_get_target_pwr_state(unsigned int lvl,
 int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 			const plat_psci_ops_t **psci_ops)
 {
-	*psci_ops = &null_psci_ops;
+	*psci_ops = &stm32_psci_ops;
 	return 0;
 }
 #endif /* STM32MP_UART_PROGRAMMER || STM32MP_USB_PROGRAMMER */

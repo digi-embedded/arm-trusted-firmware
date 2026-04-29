@@ -140,6 +140,12 @@ $(error Cannot find $(patsubst %.dtb,%.dts,$(DTB_FILE_NAME)) file)
 endif
 endif
 
+# Generic GIC v2
+include drivers/arm/gic/v2/gicv2.mk
+BL2_SOURCES		+=	${GICV2_SOURCES}
+BL2_SOURCES		+=	plat/common/plat_gicv2.c
+BL2_SOURCES		+=	plat/st/common/stm32mp_gic.c
+
 # Macros and rules to build TF binary
 STM32_TF_STM32		:=	$(addprefix ${BUILD_PLAT}/tf-a-, $(patsubst %.dtb,%.stm32,$(DTB_FILE_NAME)))
 STM32_LD_FILE		:=	plat/st/stm32mp1/stm32mp1.ld.S
@@ -178,6 +184,7 @@ $(eval $(call assert_booleans,\
 		STM32MP_CRYPTO_ROM_LIB \
 		STM32MP_DDR_32BIT_INTERFACE \
 		STM32MP_DDR_DUAL_AXI_PORT \
+		STM32MP_CRYPTO_USE_SW \
 		STM32MP_SSP \
 		STM32MP_STPMIC1L \
 		STM32MP_USE_EXTERNAL_HEAP \
@@ -215,6 +222,7 @@ $(eval $(call add_defines,\
 		STM32MP_CRYPTO_ROM_LIB \
 		STM32MP_DDR_32BIT_INTERFACE \
 		STM32MP_DDR_DUAL_AXI_PORT \
+		STM32MP_CRYPTO_USE_SW \
 		STM32MP_SSP \
 		STM32MP_STPMIC1L \
 		STM32MP_USE_EXTERNAL_HEAP \
@@ -229,10 +237,6 @@ PLAT_INCLUDES		+=	-Iplat/st/stm32mp1/include/
 PLAT_BL_COMMON_SOURCES	+=	plat/st/stm32mp1/stm32mp1_private.c
 
 PLAT_BL_COMMON_SOURCES	+=	drivers/st/uart/aarch32/stm32_console.S
-
-ifneq (${ENABLE_STACK_PROTECTOR},0)
-PLAT_BL_COMMON_SOURCES	+=	plat/st/stm32mp1/stm32mp1_stack_protector.c
-endif
 
 PLAT_BL_COMMON_SOURCES	+=	lib/cpus/aarch32/cortex_a7.S
 

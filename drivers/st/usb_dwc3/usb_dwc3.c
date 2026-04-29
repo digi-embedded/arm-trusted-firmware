@@ -60,6 +60,7 @@
 #define DWC3_GPRTBIMAP_HS1	_DWC3_GPRTBIMAP_HSHI
 #define DWC3_GPRTBIMAP_FS0	_DWC3_GPRTBIMAP_FSLO
 #define DWC3_GPRTBIMAP_FS1	_DWC3_GPRTBIMAP_FSHI
+#define DWC3_GUCTL2	_DWC3_GUCTL2
 
 #define DWC3_GUSB2PHYCFG(n)	(_DWC3_GUSB2PHYCFG + (4UL * (n)))
 #define DWC3_GUSB2I2CCTL(n)	(_DWC3_GUSB2I2CCTL + (4UL * (n)))
@@ -79,6 +80,8 @@
 #define DWC3_GUSB2PHYACC_ADDR(n)	((n) << USB3_GUSB2PHYACC_ULPI_REGADDR_POS)
 #define DWC3_GUSB2PHYACC_EXTEND_ADDR(n)	((n) << USB3_GUSB2PHYACC_ULPI_EXTREGADDR_POS)
 #define DWC3_GUSB2PHYACC_DATA(n)	((n) & USB3_GUSB2PHYACC_ULPI_REGDATA_MSK)
+
+#define DWC3_GUCTL2_RST_ACTBITLATER	_DWC3_GUCTL2_RST_ACTBITLATER
 
 /* Device Registers */
 #define DWC3_DCFG	_DWC3_DCFG
@@ -2182,6 +2185,12 @@ enum usb_status dwc3_dev_init(dwc3_handle_t *dwc3_handle, uint8_t speed, uint8_t
 
 		/* EvtBufferPos[i] = 0;  Implicit since static done in HAL */
 	}
+
+	/*
+	 * Need to set GUCTL2 RST_ACTBITLATER, so the driver can poll for CMDACT bit
+	 * when issuing the ENDTRANSFER command.
+	 */
+	DWC3_regupdateset(dwc3_handle->usb_global, DWC3_GUCTL2, DWC3_GUCTL2_RST_ACTBITLATER);
 
 	ret = dwc3_set_current_mode(dwc3_handle, USB_DWC3_DEVICE_MODE);
 	if (ret != USBD_OK) {

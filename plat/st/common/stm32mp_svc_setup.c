@@ -9,7 +9,6 @@
 
 #include <common/debug.h>
 #include <common/runtime_svc.h>
-#include <drivers/scmi-msg.h>
 #include <lib/psci/psci.h>
 #include <platform_def.h>
 #include <tools_share/uuid.h>

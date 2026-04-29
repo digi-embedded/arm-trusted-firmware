@@ -1,11 +1,11 @@
 {
   "name": "trusted-firmware-a",
-  "version": "2.10.13",
+  "version": "2.10.24",
   "license": "BSD-3-Clause",
   "type": "module",
   "private": true,
   "scripts": {
-    "postinstall": "husky install",
+    "prepare": "husky",
     "release": "standard-version"
   },
   "engines": {

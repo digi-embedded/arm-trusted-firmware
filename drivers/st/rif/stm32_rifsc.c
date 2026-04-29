@@ -18,22 +18,13 @@
 
 static unsigned long rifsc_periph[] = {
 #if STM32MP21
-	STM32MP21_RIFSC_RNG2_ID,
-	STM32MP21_RIFSC_PKA_ID,
-	STM32MP21_RIFSC_SAES_ID,
-	STM32MP21_RIFSC_HASH1_ID,
+	STM32MP21_RIFSC_CRYP1_ID,
 #endif /* STM32MP21 */
 #if STM32MP23
-	STM32MP23_RIFSC_RNG_ID,
-	STM32MP23_RIFSC_PKA_ID,
-	STM32MP23_RIFSC_SAES_ID,
-	STM32MP23_RIFSC_HASH_ID,
+	STM32MP23_RIFSC_CRYP1_ID,
 #endif /* STM32MP23 */
 #if STM32MP25
-	STM32MP25_RIFSC_RNG_ID,
-	STM32MP25_RIFSC_PKA_ID,
-	STM32MP25_RIFSC_SAES_ID,
-	STM32MP25_RIFSC_HASH_ID,
+	STM32MP25_RIFSC_CRYP1_ID,
 #endif /* STM32MP25 */
 };
 
@@ -120,7 +111,7 @@ int stm32_rifsc_semaphore_init(void)
 
 		if (!(((cidcfgr & _RIFSC_CIDCFGR_CFEN) != 0U) &&
 		      ((cidcfgr & _RIFSC_CIDCFGR_SEM_EN) != 0U) &&
-		      ((sem_wl & RIF_CID1_BF) != RIF_CID1_BF))) {
+		      ((sem_wl & RIF_CID1_BF) == RIF_CID1_BF))) {
 			continue;
 		}
 
@@ -155,7 +146,7 @@ int stm32_rifsc_semaphore_exit(void)
 
 		if (!(((cidcfgr & _RIFSC_CIDCFGR_CFEN) != 0U) &&
 		      ((cidcfgr & _RIFSC_CIDCFGR_SEM_EN) != 0U) &&
-		      ((sem_wl & RIF_CID1_BF) != RIF_CID1_BF))) {
+		      ((sem_wl & RIF_CID1_BF) == RIF_CID1_BF))) {
 			continue;
 		}
 

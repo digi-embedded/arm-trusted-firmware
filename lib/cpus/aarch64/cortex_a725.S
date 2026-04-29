@@ -9,6 +9,7 @@
 #include <common/bl_common.h>
 #include <cortex_a725.h>
 #include <cpu_macros.S>
+#include <dsu_macros.S>
 #include <plat_macros.S>
 
 /* Hardware handled coherency */
@@ -21,9 +22,20 @@
 #error "Cortex-A725 supports only AArch64. Compile with CTX_INCLUDE_AARCH32_REGS=0"
 #endif
 
+cpu_reset_prologue cortex_a725
+
 .global check_erratum_cortex_a725_3699564
 
-add_erratum_entry cortex_a725, ERRATUM(3699564), ERRATA_A725_3699564, NO_APPLY_AT_RESET
+workaround_reset_start cortex_a725, ERRATUM(2900952), ERRATA_DSU_2900952
+	errata_dsu_2900952_wa_apply
+workaround_reset_end cortex_a725, ERRATUM(2900952)
+
+check_erratum_custom_start cortex_a725, ERRATUM(2900952)
+	check_errata_dsu_2900952_applies
+	ret
+check_erratum_custom_end cortex_a725, ERRATUM(2900952)
+
+add_erratum_entry cortex_a725, ERRATUM(3699564), ERRATA_A725_3699564
 
 check_erratum_ls cortex_a725, ERRATUM(3699564), CPU_REV(0, 1)
 
@@ -45,8 +57,6 @@ func cortex_a725_core_pwr_dwn
 	isb
 	ret
 endfunc cortex_a725_core_pwr_dwn
-
-errata_report_shim cortex_a725
 
 	/* ---------------------------------------------
 	 * This function provides Cortex-A725 specific

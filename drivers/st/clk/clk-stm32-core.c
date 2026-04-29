@@ -17,7 +17,7 @@
 #include <lib/spinlock.h>
 
 #define TIMEOUT_US_200MS	U(200000)
-#define TIMEOUT_US_1S		U(1000000)
+#define TIMEOUT_US_2S		U(2000000)
 #define CLKSRC_TIMEOUT		TIMEOUT_US_200MS
 
 static struct spinlock reg_lock;
@@ -653,7 +653,19 @@ void clk_stm32_enable_critical_clocks(void)
 
 static void stm32_clk_register(void)
 {
-	clk_register(&stm32mp_clk_ops);
+	int node_rcc = -1;
+	void *fdt = NULL;
+
+	if (fdt_get_address(&fdt) == 0) {
+		panic();
+	}
+
+	node_rcc = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_CLK_COMPAT);
+	if (node_rcc < 0) {
+		panic();
+	}
+
+	clk_add_default_provider(node_rcc, &stm32mp_clk_ops);
 }
 
 uint32_t clk_stm32_div_get_value(struct stm32_clk_priv *priv, int div_id)
@@ -744,7 +756,7 @@ int _clk_stm32_gate_wait_ready(struct stm32_clk_priv *priv, uint16_t gate_id,
 		mask_test = 0U;
 	}
 
-	timeout = timeout_init_us(TIMEOUT_US_1S);
+	timeout = timeout_init_us(TIMEOUT_US_2S);
 
 	while ((mmio_read_32(address) & mask_rdy) != mask_test) {
 		if (timeout_elapsed(timeout)) {

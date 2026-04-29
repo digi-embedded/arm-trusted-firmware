@@ -234,7 +234,7 @@ func console_stm32_core_flush
 	/* Check Transmission Complete flag */
 tc_loop:
 	ldr	r1, [r0, #USART_ISR]
-	tst	r1, #USART_ISR_TXE
+	tst	r1, #USART_ISR_TC
 	beq	tc_loop
 1:
 	bx	lr

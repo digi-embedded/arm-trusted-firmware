@@ -34,6 +34,9 @@ endif
 ENABLE_SPE_FOR_NS		:=	0
 ENABLE_SVE_FOR_NS		:=	0
 
+# Don't have the Linux kernel as a BL33 image by default
+ARM_LINUX_KERNEL_AS_BL33	:=	0
+
 # Enable PSCI v1.0 extended state ID format
 PSCI_EXTENDED_STATE_ID		:= 	1
 PSCI_OS_INIT_MODE		:= 	1
@@ -67,7 +70,13 @@ $(warning DTB_FILE_NAME=$(DTB_FILE_NAME))
 $(error Cannot enable 2 flags STM32MP2X)
 endif
 
+ifeq (${STM32MP_M33_TDCID},1)
+# When Cortex-M33 is TDCID, Cortex-A doesn't have access to HASH, SAES and PKA peripherals
+STM32MP_CRYPTO_USE_SW	:=	1
+STM32MP_USE_EXTERNAL_HEAP 	:=	0
+else
 STM32MP_USE_EXTERNAL_HEAP 	:=	1
+endif
 
 ifeq (${TRUSTED_BOARD_BOOT},1)
 # PKA algo to include
@@ -202,6 +211,7 @@ endif
 # Enable flags for C files
 $(eval $(call assert_booleans,\
 	$(sort \
+		ARM_LINUX_KERNEL_AS_BL33 \
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
 		STM32MP_CRYPTO_ROM_LIB \
@@ -213,6 +223,7 @@ $(eval $(call assert_booleans,\
 		STM32MP_DDR4_TYPE \
 		STM32MP_LPDDR4_TYPE \
 		STM32MP_M33_TDCID \
+		STM32MP_CRYPTO_USE_SW \
 		STM32MP_USE_EXTERNAL_HEAP \
 		STM32MP21 \
 		STM32MP23 \
@@ -233,6 +244,7 @@ $(eval $(call assert_numerics,\
 
 $(eval $(call add_defines,\
 	$(sort \
+		ARM_LINUX_KERNEL_AS_BL33 \
 		DWL_BUFFER_BASE \
 		PKA_USE_BRAINPOOL_P256T1 \
 		PKA_USE_NIST_P256 \
@@ -253,6 +265,7 @@ $(eval $(call add_defines,\
 		STM32MP_DDR4_TYPE \
 		STM32MP_LPDDR4_TYPE \
 		STM32MP_M33_TDCID \
+		STM32MP_CRYPTO_USE_SW \
 		STM32MP_USE_EXTERNAL_HEAP \
 		STM32MP_SIP_CA33SS_CLK \
 		STM32MP21 \
@@ -267,6 +280,7 @@ TF_CFLAGS			+=	-mbranch-protection=none
 
 # Include paths and source files
 PLAT_INCLUDES			+=	-Iplat/st/stm32mp2/include/
+PLAT_INCLUDES			+=	-Iplat/st/stm32mp2/scmi/
 PLAT_INCLUDES			+=	-Idrivers/st/ddr/phy/phyinit/include/
 PLAT_INCLUDES			+=	-Idrivers/st/ddr/phy/firmware/include/
 
@@ -281,8 +295,10 @@ PLAT_BL_COMMON_SOURCES		+=	drivers/st/i2c/stm32_i2c.c
 
 PLAT_BL_COMMON_SOURCES		+=	plat/st/stm32mp2/stm32mp2_private.c
 
-ifeq ($(STM32MP_M33_TDCID),0)
 PLAT_BL_COMMON_SOURCES		+=	drivers/st/bsec/bsec3.c
+
+ifeq ($(STM32MP_M33_TDCID),0)
+PLAT_BL_COMMON_SOURCES		+=	plat/st/stm32mp2/plat_ddr.c
 else
 PLAT_BL_COMMON_SOURCES		+=	plat/st/stm32mp2/stm32mp2_otp.c
 endif
@@ -306,8 +322,7 @@ endif
 BL2_SOURCES			+=	plat/st/stm32mp2/plat_bl2_mem_params_desc.c
 
 BL2_SOURCES			+=	drivers/st/crypto/stm32_hash.c				\
-					plat/st/stm32mp2/bl2_plat_setup.c			\
-					plat/st/stm32mp2/plat_ddr.c
+					plat/st/stm32mp2/bl2_plat_setup.c
 
 BL2_SOURCES			+=	drivers/st/rif/stm32_rifsc.c
 
@@ -315,10 +330,14 @@ ifeq ($(STM32MP_M33_TDCID),0)
 BL2_SOURCES			+=	drivers/st/rif/stm32mp2_risaf.c
 endif
 
-
 ifeq (${TRUSTED_BOARD_BOOT},1)
 BL2_SOURCES			+=	drivers/st/crypto/stm32_pka.c
+ifeq ($(STM32MP_M33_TDCID),0)
 BL2_SOURCES			+=	drivers/st/crypto/stm32_saes.c
+else
+BL2_SOURCES			+=	drivers/st/crypto/stm32_cryp.c			\
+					lib/psa/rse_platform.c
+endif
 endif
 
 ifneq ($(filter 1,${STM32MP_EMMC} ${STM32MP_SDMMC}),)
@@ -378,6 +397,13 @@ BL2_SOURCES			+=	drivers/st/ddr/phy/phyinit/src/ddrphy_phyinit_d_loadimem.c				\
 					drivers/st/ddr/phy/phyinit/src/ddrphy_phyinit_g_execfw.c				\
 					drivers/st/ddr/phy/phyinit/src/ddrphy_phyinit_writeoutmem.c				\
 					drivers/st/ddr/phy/phyinit/usercustom/ddrphy_phyinit_usercustom_g_waitfwdone.c
+else
+# rse drivers
+BL2_SOURCES			+=	drivers/st/rse_shm/rse_comms_shm.c				\
+					plat/st/stm32mp2/stm32_rse_comms.c
+PLAT_MHU			:=	NO_MHU
+include drivers/arm/rse/rse_comms.mk
+BL2_SOURCES			+=	${RSE_COMMS_SOURCES}
 endif #STM32MP_M33_TDCID
 
 # BL31 sources
@@ -388,6 +414,7 @@ BL31_SOURCES			+=	plat/st/stm32mp2/bl31_plat_setup.c			\
 
 ifeq ($(filter 1,${STM32MP_UART_PROGRAMMER} ${STM32MP_USB_PROGRAMMER}),)
 BL31_SOURCES			+=	plat/st/stm32mp2/stm32mp2_pm.c				\
+					plat/st/stm32mp2/stm32mp2_ca35ss.c			\
 					common/tf_crc32.c
 
 BL31_CPPFLAGS += -march=armv8-a+crc
@@ -412,7 +439,7 @@ BL31_SOURCES			+=	plat/st/common/stm32mp_svc_setup.c			\
 BL31_SOURCES			+=	services/arm_arch_svc/arm_arch_svc_setup.c
 
 ifeq (${STM32MP_M33_TDCID},1)
-BL31_SOURCES			+=	plat/st/stm32mp2/services/scmi_common.c
+BL31_SOURCES			+=	plat/st/stm32mp2/scmi/scmi_common.c
 endif
 
 ifeq (${STM32MP_SIP_CA33SS_CLK},1)

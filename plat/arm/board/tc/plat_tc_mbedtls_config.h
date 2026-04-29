@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Arm Ltd. All rights reserved.
+ * Copyright (c) 2022-2024, Arm Ltd. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,7 +19,7 @@
 #undef TF_MBEDTLS_HEAP_SIZE
 #define TF_MBEDTLS_HEAP_SIZE	PLATFORM_TEST_MIN_MBEDTLS_HEAP_SIZE
 #endif
-#endif
+#endif /* TF_MBEDTLS_HEAP_SIZE */
 
 /**
  * On Arm TC platforms, the ROTPK is always hashed using the SHA-256
@@ -43,5 +43,6 @@
 #define MBEDTLS_TEST_NULL_ENTROPY
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+#define MBEDTLS_ECP_NO_INTERNAL_RNG
 
 #endif /* PLAT_TC_MBEDTLS_CONFIG_H */

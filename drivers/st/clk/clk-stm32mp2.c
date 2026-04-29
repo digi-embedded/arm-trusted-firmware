@@ -107,12 +107,10 @@ static struct stm32_pll1_cfgs pll1_cfgs;
 #define A35_SS_PLL_ENABLE_NRESET_SWPLL_FF	BIT(2)
 
 #define TIMEOUT_US_200MS	U(200000)
-#define TIMEOUT_US_1S		U(1000000)
 
 #define PLLRDY_TIMEOUT		TIMEOUT_US_200MS
 #define CLKSRC_TIMEOUT		TIMEOUT_US_200MS
 #define CLKDIV_TIMEOUT		TIMEOUT_US_200MS
-#define OSCRDY_TIMEOUT		TIMEOUT_US_1S
 
 /* PLL minimal frequencies for clock sources */
 #define PLL_REFCLK_MIN			UL(5000000)
@@ -845,6 +843,10 @@ static unsigned long clk_stm32_osc_recalc_rate(struct stm32_clk_priv *priv,
 static bool clk_stm32_osc_gate_is_enabled(struct stm32_clk_priv *priv, int id)
 {
 	struct clk_oscillator_data *osc_data = clk_oscillator_get_data(priv, id);
+
+	if (osc_data->frequency == 0UL) {
+		return true;
+	}
 
 	return _clk_stm32_gate_is_enabled(priv, osc_data->gate_id);
 
@@ -2728,15 +2730,10 @@ static int stm32_clk_parse_fdt_all_pll(void *fdt, int node, struct stm32_clk_pla
 	return 0;
 }
 
-static int stm32_clk_parse_fdt(struct stm32_clk_platdata *pdata)
+static int stm32_clk_parse_fdt(void *fdt, struct stm32_clk_platdata *pdata)
 {
-	void *fdt = NULL;
 	int node;
 	int err;
-
-	if (fdt_get_address(&fdt) == 0) {
-		return -ENOENT;
-	}
 
 	node = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_CLK_COMPAT);
 	if (node < 0) {
@@ -2823,13 +2820,13 @@ static struct stm32_clk_priv stm32mp2_clock_data = {
 	.ops_array	= ops_array_mp2,
 };
 
-int stm32mp2_clk_init(void)
+int stm32mp2_clk_init(void *fdt)
 {
 	uintptr_t base = RCC_BASE;
 	int ret;
 
 #ifdef IMAGE_BL2
-	ret = stm32_clk_parse_fdt(&stm32mp2_pdata);
+	ret = stm32_clk_parse_fdt(fdt, &stm32mp2_pdata);
 	if (ret != 0) {
 		return ret;
 	}
@@ -2992,10 +2989,28 @@ uint64_t stm32mp2_pll1_recalc_rate()
 	return clk_stm32_pll1_recalc_rate(NULL, 0, pll1_cfgs.prate);
 }
 
+int32_t stm32mp2_pll1_check_rate(uint64_t rate)
+{
+	int32_t cfg_idx;
+
+	for (cfg_idx = 0; cfg_idx < pll1_cfgs.pll1_cfg_nb; cfg_idx++) {
+		if (pll1_cfgs.rates[cfg_idx] == rate) {
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 int32_t stm32mp2_pll1_set_rate(uint64_t rate)
 {
 	int32_t cfg_idx;
 	int32_t err;
+
+	if (rate == 0U) {
+		stm32mp2_a35_ss_on_bypass();
+		return 0;
+	}
 
 	/* Find cfg_idx */
 	for (cfg_idx = 0; cfg_idx < pll1_cfgs.pll1_cfg_nb; cfg_idx++) {
